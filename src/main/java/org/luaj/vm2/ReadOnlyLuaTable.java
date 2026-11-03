@@ -1,30 +1,8 @@
-/**													*\
- *   JPHYSGEAR GAME ENGINE BY DMITRI POTERIANSKI	*
- *													*
- * FILE IS PART OF THE JPHYSGEAR PROJECT SOURCE,	*
- * SEE LICENSE IN SOURCE FOLDER FOR RESTRICTIONS.	*
- *													*
- *	Copyright (c) Dmitri Poterianski 2017			*
-\*													*/
 package org.luaj.vm2;
 
-import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaValue;
-import org.luaj.vm2.Varargs;
-
 /**
- * <p>
- * File Name: ReadOnlyLuaTable.java
- * <p>
- * Type Name: ReadOnlyLuaTable
- * <p>
- * Date Created: Jan 6, 2017
- * 
- * <p>
- * Description for type ReadOnlyLuaTable goes here
- * 
- * @author Dmitri Poterianski
- * @version 1.0
+ * A read-only copy of a table: its contents are copied in when it's made (tables inside it as
+ * read-only copies too), and every later write raises a Lua error.
  */
 public class ReadOnlyLuaTable extends LuaTable {
 	public ReadOnlyLuaTable(LuaValue table) {
