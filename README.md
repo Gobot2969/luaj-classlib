@@ -47,10 +47,10 @@ globals.load(new ClassLib());   // org.luaj.vm2.lib.ClassLib: the globals class,
 Then, in Lua:
 
 ```lua
-local Animal = class.register({ __name = "animal",
+local Animal = class.register({ __classname = "animal",
     speak = function(self) return "..." end })
 
-local Dog = class.register({ __name = "dog",
+local Dog = class.register({ __classname = "dog",
     speak = function(self) return "Woof, not " .. super.speak(self) end }, Animal)
 
 print(new(Dog):speak())   -- Woof, not ...
@@ -63,12 +63,12 @@ What the library is meant to do. Where it doesn't yet, [TODO.md](TODO.md) lists 
 **Installing.** `globals.load(new ClassLib())` sets the globals `class` (also `package.loaded.class`), `new`
 and `super`. `class` holds `class.register` and `class.get`.
 
-**Defining a class.** A class is defined as a plain table: its `__name` (a string), and its methods and
+**Defining a class.** A class is defined as a plain table: its `__classname` (a string), and its methods and
 fields. `class.register(table [, base])` makes it a class and returns the class table. That's a new table:
 the one passed in is only read, so a script can build it however it likes (a local, a global like `ENT`
 filled by another file) and drop it after. `base` is a class returned by `class.register` or `class.get`.
 
-**Names.** A class's name is its `__name`, exactly as written: names are case-sensitive (`"Dog"` and
+**Names.** A class's name is its `__classname`, exactly as written: names are case-sensitive (`"Dog"` and
 `"dog"` are two classes). `.` is a delimiter (`"weapon.pistol"`), so a name can't be empty, start or end
 with a dot, or have two dots in a row. Each name is registered once. `class.get(name)` returns the class
 registered under exactly that name, or nil.
@@ -87,10 +87,10 @@ them; scripts read them and don't set them.
 
 | Field | Is |
 |---|---|
-| `__name` | the class's name, as registered |
-| `__basename` | its base's name, `""` for a class with no base |
+| `__classname` | the class's name, as registered |
+| `__classname_base` | its base's name, `""` for a class with no base |
 | `__class` | the class table itself |
-| `__base` | the base class table, nil for a class with no base |
+| `__class_base` | the base class table, nil for a class with no base |
 
 **super.** Inside a class's method, `super.name` is `name` in the base of the class *the method was
 registered with*, not the instance's class: so every level of a chain of supercalls goes one class up, and
@@ -100,7 +100,7 @@ calls, errors and coroutines (a method can yield in the middle). It's only valid
 outside one (including from a callback called after its method returned), or in a class with no base, it
 raises a Lua error. The methods are the functions the table held when it was registered.
 
-**Errors.** Misuse (a missing, non-string or invalid `__name`, a base that isn't a class, `new` on
+**Errors.** Misuse (a missing, non-string or invalid `__classname`, a base that isn't a class, `new` on
 something that isn't a class, a name registered twice) raises a Lua error naming the problem.
 
 ## Building

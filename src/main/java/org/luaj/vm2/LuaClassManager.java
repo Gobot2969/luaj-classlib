@@ -6,16 +6,15 @@ import java.util.Map;
 public class LuaClassManager {
 
 	// The system's fields on class tables (and through __index, on instances). Double-underscore lowercase, as
-	// Lua names its metatable fields: a class table is its instances' metatable. __name is also the key Lua 5.3+
-	// names a type by.
+	// Lua names its metatable fields: a class table is its instances' metatable.
 	/** The class's name, as registered (case-sensitive). */
-	public static final String CLASSNAME_KEY = "__name";
+	public static final String CLASSNAME_KEY = "__classname";
 	/** The base class's name, "" for a class with no base. */
-	public static final String CLASSNAME_BASE_KEY = "__basename";
+	public static final String CLASSNAME_BASE_KEY = "__classname_base";
 	/** The class table itself. */
 	public static final String CLASSTABLE_KEY = "__class";
 	/** The base class table, nil for a class with no base. */
-	public static final String CLASSTABLE_BASE_KEY = "__base";
+	public static final String CLASSTABLE_BASE_KEY = "__class_base";
 
 	/**
 	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by exact name
