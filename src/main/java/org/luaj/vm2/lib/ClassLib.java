@@ -1,6 +1,7 @@
 package org.luaj.vm2.lib;
 
 import org.luaj.vm2.ClassLuaTable;
+import org.luaj.vm2.ClassMethod;
 import org.luaj.vm2.LuaClassManager;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
@@ -39,6 +40,7 @@ public class ClassLib extends TwoArgFunction {
 		lib.set("register", new RegisterFunction());
 		env.set(PACKAGE_NAME, lib);
 		env.set("new", new NewFunction());
+		env.set("super", ClassMethod.superTable());
 		if (!env.get("package").isnil()) env.get("package").get("loaded").set(PACKAGE_NAME, lib);
 		return lib;
 	}

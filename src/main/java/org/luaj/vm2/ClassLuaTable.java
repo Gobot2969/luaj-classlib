@@ -33,7 +33,7 @@ public class ClassLuaTable extends LuaTable {
 				case LuaClassManager.CLASSTABLE_KEY:
 					return classTable;
 				case LuaClassManager.CLASSTABLE_BASE_KEY:
-					return baseClassTable;
+					return baseClassTable == null ? NIL : baseClassTable; // nil, not Java null, for a root class
 				default:
 					break;
 			}

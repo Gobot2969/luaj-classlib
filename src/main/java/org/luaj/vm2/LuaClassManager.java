@@ -44,13 +44,13 @@ public class LuaClassManager {
 			}
 		}
 
-		// Copy table keys
+		// Copy table keys; its functions become this class's methods (see ClassMethod: super)
 		for (LuaValue key : table.keys()) {
 			if (key.isstring()) {
 				String k = key.tojstring();
 				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
 			}
-			classTable.rawset(key, table.rawget(key));
+			classTable.rawset(key, ClassMethod.wrap(table.rawget(key), classTable));
 		}
 		
 		classTable.set("__index", classTable); // TODO check if this even does anything
