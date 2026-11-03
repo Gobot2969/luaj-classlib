@@ -1,9 +1,5 @@
 package org.luaj.vm2;
 
-import org.luaj.vm2.LuaString;
-import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaValue;
-
 public class ClassLuaTable extends LuaTable {
 	
 	protected LuaClassManager classManager;

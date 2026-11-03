@@ -7,18 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.luaj.vm2.Globals;
-import org.luaj.vm2.LuaString;
-import org.luaj.vm2.LuaTable;
-import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.lib.ThreeArgFunction;
 import org.luaj.vm2.lib.TwoArgFunction;
 import org.luaj.vm2.lib.ZeroArgFunction;
-
-import com.risingear.engine.LocalShared;
-import com.risingear.engine.environment.GE;
-import com.risingear.engine.vfs.FilePath;
-import com.risingear.engine.vfs.VFSFile;
 
 public class LuaClassManager {
 	
@@ -26,8 +17,8 @@ public class LuaClassManager {
 	public static final String CLASSNAME_VAR = "CLASSNAME";
 	public static final String CLASSNAME_BASE_VAR = "CLASSNAME_BASE";
 	public static final String CLASS_SCRIPT_VAR = "CLASS_SCRIPT";
-	public static final String CLASSMETA_SCRIPT_VAR = "CLASSMETA_SCRIPT";
-	public static final String CLASSMETA_VAR = "CLASSMETA";
+	// public static final String CLASSMETA_SCRIPT_VAR = "CLASSMETA_SCRIPT";
+	// public static final String CLASSMETA_VAR = "CLASSMETA";
 	
 	/**
 	 * A map of all loaded class tables <String className, LuaTable classTable>
@@ -37,18 +28,16 @@ public class LuaClassManager {
 	protected String classDir = "";
 	protected String staticTableName = "";
 	protected String classTypeName = "";
-	protected LocalShared localShared;
 	
-	public LuaClassManager(LocalShared localShared, String classDir, String classTypeName, String staticTableName, Map<String, ClassLuaTable> classes) {
-		this.localShared = localShared;
+	public LuaClassManager(String classDir, String classTypeName, String staticTableName, Map<String, ClassLuaTable> classes) {
 		this.classDir = classDir;
 		this.classTypeName = classTypeName;
 		this.staticTableName = staticTableName;
 		this.classes = classes;
 	}
 	
-	public LuaClassManager(LocalShared localShared, String classDir, String classTypeName, String staticTableName) {
-		this(localShared, classDir, classTypeName, staticTableName, new HashMap<String, ClassLuaTable>());
+	public LuaClassManager(String classDir, String classTypeName, String staticTableName) {
+		this(classDir, classTypeName, staticTableName, new HashMap<String, ClassLuaTable>());
 	}
 	
 	/**
@@ -155,74 +144,74 @@ public class LuaClassManager {
 		
 	}
 	
-	public void registerAllClasses() {
-		//VFSFile[] classes = GE.i.filesys.listFiles(new FilePath("lua/"+this.classDir), false, true, false, new String[]{}); // foldiers only
-		VFSFile[] classFiles = GE.i.filesys.listFiles(new FilePath("lua/"+this.classDir), false, true, true, new String[]{"lua"}); // root lua files too
+	// public void registerAllClasses() {
+	// 	//VFSFile[] classes = GE.i.filesys.listFiles(new FilePath("lua/"+this.classDir), false, true, false, new String[]{}); // foldiers only
+	// 	VFSFile[] classFiles = GE.i.filesys.listFiles(new FilePath("lua/"+this.classDir), false, true, true, new String[]{"lua"}); // root lua files too
 		
-		Map<String, ClassLuaTable> tempDuplicateCheck = new TreeMap<>();
+	// 	Map<String, ClassLuaTable> tempDuplicateCheck = new TreeMap<>();
 		
-		for (VFSFile vf : classFiles) {
+	// 	for (VFSFile vf : classFiles) {
 			
-			String className, classScript, classmetaScript;
-			if (vf.isDirectory()) { // If it's a folder named classname with classmeta.lua and/or init.lua inside it
-				// Create the class name and script paths
-				className = vf.getName().toLowerCase();
-				classScript = this.classDir + className + "/init.lua";
-				classmetaScript = this.classDir + className + "/classmeta.lua";
-				if (!GE.i.filesys.fileExists("lua/"+classmetaScript)) {
-					if (!GE.i.filesys.fileExists("lua/"+classScript)) { // If neither exist?!
-						continue; // Quit it. No class, no class.
-					}
-					classmetaScript = classScript;
-				}
+	// 		String className, classScript, classmetaScript;
+	// 		if (vf.isDirectory()) { // If it's a folder named classname with classmeta.lua and/or init.lua inside it
+	// 			// Create the class name and script paths
+	// 			className = vf.getName().toLowerCase();
+	// 			classScript = this.classDir + className + "/init.lua";
+	// 			classmetaScript = this.classDir + className + "/classmeta.lua";
+	// 			if (!GE.i.filesys.fileExists("lua/"+classmetaScript)) {
+	// 				if (!GE.i.filesys.fileExists("lua/"+classScript)) { // If neither exist?!
+	// 					continue; // Quit it. No class, no class.
+	// 				}
+	// 				classmetaScript = classScript;
+	// 			}
 				
-			} else if (vf.getExtension().equals("lua")) { // If it's just a lua file name classname lying flat in classes dir
-				// Create the class name and script paths
-				className = vf.getName().toLowerCase();
-				classmetaScript = this.classDir + className;
-				className = className.substring(0, className.length()-4); // Remove .lua from classname
+	// 		} else if (vf.getExtension().equals("lua")) { // If it's just a lua file name classname lying flat in classes dir
+	// 			// Create the class name and script paths
+	// 			className = vf.getName().toLowerCase();
+	// 			classmetaScript = this.classDir + className;
+	// 			className = className.substring(0, className.length()-4); // Remove .lua from classname
 				
-				classScript = classmetaScript;
-			} else { // If it's something else (not dir or  that doesn't belong in classes dir -- shouldn't occur given VFS.listFiles call allows DIRS AND FILE EXT .LUA
-				continue;
-			}
+	// 			classScript = classmetaScript;
+	// 		} else { // If it's something else (not dir or  that doesn't belong in classes dir -- shouldn't occur given VFS.listFiles call allows DIRS AND FILE EXT .LUA
+	// 			continue;
+	// 		}
 			
 			
-			// NEW CHECK if class already exists (i.e. '{classDir}/trigger_myentclass.lua' and '{classDir}/trigger_myent/classmeta.lua' both exist and second registry attempt is ocurring)
-			ClassLuaTable check = tempDuplicateCheck.get(className);
-			if (check != null) {
-				GE.i.err("ABORTING DUPLICATE ATTEMPTS TO REGISTER '" + classTypeName + "' CLASS: className='" + className + "' original_classmetaScript='" + check.getClassmetaScript() + "' ; new_classmetaScript='" + classmetaScript + "'");
-				continue;
-			}
+	// 		// NEW CHECK if class already exists (i.e. '{classDir}/trigger_myentclass.lua' and '{classDir}/trigger_myent/classmeta.lua' both exist and second registry attempt is ocurring)
+	// 		ClassLuaTable check = tempDuplicateCheck.get(className);
+	// 		if (check != null) {
+	// 			GE.i.err("ABORTING DUPLICATE ATTEMPTS TO REGISTER '" + classTypeName + "' CLASS: className='" + className + "' original_classmetaScript='" + check.getClassmetaScript() + "' ; new_classmetaScript='" + classmetaScript + "'");
+	// 			continue;
+	// 		}
 			
 			
-			// Create the tricky globals to run the file once with and just see the base class value, etc (REPLACES ORIGINAL classmeta.lua METHOD)
-			Globals classmetaGlobals = newClassmetaGlobals();
-			// "Meta-run"
-			try {
-				this.localShared.scriptEngine.include(LuaString.valueOf(classmetaScript), classmetaGlobals, null, true); // Run in suppress error mode
-			} catch (Exception e) { // SILENCER MOD UNTIL WE PERFECTED "META-EXECUTION"
-				//GE.i.err(e.getMessage());
-				//e.printStackTrace(GE.i.getConErrStream());
-			}
+	// 		// Create the tricky globals to run the file once with and just see the base class value, etc (REPLACES ORIGINAL classmeta.lua METHOD)
+	// 		Globals classmetaGlobals = newClassmetaGlobals();
+	// 		// "Meta-run"
+	// 		try {
+	// 			this.localShared.scriptEngine.include(LuaString.valueOf(classmetaScript), classmetaGlobals, null, true); // Run in suppress error mode
+	// 		} catch (Exception e) { // SILENCER MOD UNTIL WE PERFECTED "META-EXECUTION"
+	// 			//GE.i.err(e.getMessage());
+	// 			//e.printStackTrace(GE.i.getConErrStream());
+	// 		}
 			
-			//Retrieve the meta
-			LuaTable classmeta = (LuaTable)classmetaGlobals.get(staticTableName + "_META");
-			LuaValue base = classmeta.get(CLASSNAME_BASE_VAR);
-			//GE.i.log("BAAAAAAAAAAAAAAAAAAAAAAAAAAASSEEEE BAAAASE BAAASE BAAAAAAAASE: " + className + " extends " + base.tojstring());
+	// 		//Retrieve the meta
+	// 		LuaTable classmeta = (LuaTable)classmetaGlobals.get(staticTableName + "_META");
+	// 		LuaValue base = classmeta.get(CLASSNAME_BASE_VAR);
+	// 		//GE.i.log("BAAAAAAAAAAAAAAAAAAAAAAAAAAASSEEEE BAAAASE BAAASE BAAAAAAAASE: " + className + " extends " + base.tojstring());
 			
-			// ADDED RECENTLY. We actually create an empty "loaded" class table ahead of time because reasons.
-			ClassLuaTable classTable = createClassTable(className);
-			classTable.setBaseClassName(base.tojstring());
-			classTable.setClassScript(classScript);
-			classTable.setClassmetaScript(classmetaScript);
-			classTable.setClassmeta(classmeta);
-			classes.put(className, classTable); // Save class table to classman
-			tempDuplicateCheck.put(className, classTable); // Just for registering all classes duplicate check
-			//GE.i.log("CLASS: " + className + "\t\t\t RASS:" + classScript + "\t\t\t METASS:" + classmetaScript);
-		}
+	// 		// ADDED RECENTLY. We actually create an empty "loaded" class table ahead of time because reasons.
+	// 		ClassLuaTable classTable = createClassTable(className);
+	// 		classTable.setBaseClassName(base.tojstring());
+	// 		classTable.setClassScript(classScript);
+	// 		classTable.setClassmetaScript(classmetaScript);
+	// 		classTable.setClassmeta(classmeta);
+	// 		classes.put(className, classTable); // Save class table to classman
+	// 		tempDuplicateCheck.put(className, classTable); // Just for registering all classes duplicate check
+	// 		//GE.i.log("CLASS: " + className + "\t\t\t RASS:" + classScript + "\t\t\t METASS:" + classmetaScript);
+	// 	}
 		
-	}
+	// }
 	
 	public void loadAllClasses(Globals globals) {
 		
@@ -254,14 +243,9 @@ public class LuaClassManager {
 		globals.set(this.staticTableName, classTable);
 		((LuaTable)globals.get(this.staticTableName)).set(CLASSNAME_BASE_VAR, this.classes.get(className).getBaseClassName());
 		
-		try {
-			classTable.set("__index", classTable);
-			
-			this.localShared.scriptEngine.include(LuaString.valueOf(classTable.getClassScript()), this.localShared.scriptEngine.globals);
-		} catch (Exception e) {
-			GE.i.err("Could not load " + classTypeName + " class " + className + ": ", false);
-			GE.i.err(e.getMessage());
-		}
+		classTable.set("__index", classTable);
+		
+		globals.loadfile(classTable.getClassScript());
 		globals.set(this.staticTableName, LuaValue.NIL); // Hide the static class table reference from the rest of Lua
 	}
 	
