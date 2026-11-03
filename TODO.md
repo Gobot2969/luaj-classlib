@@ -6,18 +6,24 @@ Open work on luaj-classlib, beside the intended behaviour in the [README](README
 
 Where the library doesn't do what the README says yet.
 
-- **Writes to the system fields are ignored silently** (`C.__name = "x"` is stored, but `__name` still
+- **Writes to the system fields are ignored silently** (`C.__classname = "x"` is stored, but `__classname` still
   reads the real name); they should raise an error.
 - **Methods added to a class after it's registered have no `super`** (`function C:f() super.f(self) end`
   after `class.register` raises "not inside a class method"). Wrapping functions as they're set on a class
   table (`ClassLuaTable.rawset`) would fix it.
 
+- **A base passed as `class.get(...)` before it's registered becomes no base, silently.**
+  `class.register(t, class.get("Gun"))` before `Gun` is registered passes nil, so the class is registered
+  as a root instead of failing rule 2 (README, Hierarchy). Naming the base in the table
+  (`__classname_base = "Gun"`) raises an error instead; `register` could also take the name as its second
+  argument (`class.register(t, "Gun")`).
+
 ## Potential gaps
 
 Not decided: behaviour that may need changing.
 
-- **`pairs` over a class shows some system fields, not others.** It lists `__name`, `__basename` and
-  `__index` (stored in the table) but not `__class` or `__base` (answered by `ClassLuaTable.hashget` only).
+- **`pairs` over a class shows some system fields, not others.** It lists `__classname`, `__classname_base` and
+  `__index` (stored in the table) but not `__class` or `__class_base` (answered by `ClassLuaTable.hashget` only).
   Either store all of them or none.
 - **`getmetatable(instance)` is the class table itself**, so any script holding an instance can change its
   class. A `__metatable` field on class tables would hide it, if classes should be protected.

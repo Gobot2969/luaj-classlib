@@ -5,6 +5,11 @@ package org.luaj.vm2;
  * read-only copies too), and every later write raises a Lua error.
  */
 public class ReadOnlyLuaTable extends LuaTable {
+	/**
+	 * Copies a table, read-only, tables inside it too.
+	 *
+	 * @param table the table to copy
+	 */
 	public ReadOnlyLuaTable(LuaValue table) {
 		presize(table.length(), 0);
 		for (Varargs n = table.next(LuaValue.NIL); !n.arg1().isnil(); n = table
