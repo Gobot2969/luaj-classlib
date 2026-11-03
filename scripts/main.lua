@@ -12,14 +12,14 @@ package.path = package.path .. ";./scripts/?.lua;./?.lua"
 local CAnimal = {
     CLASSNAME="Animal"
 }
-function Animal:speak() return "..." end
+function CAnimal:speak() return "..." end
 CAnimal = class.register(CAnimal)
 -- A subclass, extending Animal.
 local CDog = {
     CLASSNAME="Dog"
 }
 function CDog:speak() return "Woof" end
-CDog = class.register(CDog)
+CDog = class.register(CDog, CAnimal)
 
 local dogInstance = new(CDog)
 print("Dog says", dogInstance:speak())
@@ -39,4 +39,15 @@ require("class_a_oldschool")
 CEntity = class.register( ENT )
 ENT = nil -- Clear from globals whenever you're done all of these
 local ent1 = new(CEntity) -- Should work
---local ent2 = new("Entity") -- Should work
+ent1:info()
+
+---------------------------------------------------------------
+-- Neat file. Uses its own local table inside itself,
+-- then the file itself returns the class registry result
+---------------------------------------------------------------
+local ent2 = require("class_b_neatfile")
+ent2:info()
+
+
+-- Attempt to write readonly info
+ent2.CLASS = {}
