@@ -1,0 +1,5 @@
+[versions]
+luaj = "3.0.2-2"
+
+[libraries]
+luaj = { module = "com.github.dimmskii:luaj-jitpack", version.ref = "luaj" }
