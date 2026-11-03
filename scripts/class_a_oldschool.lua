@@ -1,5 +1,5 @@
-
+ENT.CLASSNAME = "entity"
 
 function ENT:info()
-    print "I am an entity!"
+    print("I am a class: ", self.CLASSNAME)
 end

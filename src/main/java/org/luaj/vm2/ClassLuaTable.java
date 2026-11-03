@@ -11,17 +11,18 @@ public class ClassLuaTable extends LuaTable {
 	private String baseClassName;
 	private LuaString baseClassNameLua;
 
-	public ClassLuaTable(LuaClassManager classManager, String className) {
+	public ClassLuaTable(LuaClassManager classManager, String className, String baseClassName) {
 		this.classManager = classManager;
 		setClassName(className);
+		setBaseClassName(baseClassName);
 	}
 
 
-	protected void onRegistered() {}
+	//protected void onRegistered() {}
 
-	protected void onLoadPre() {}
+	//protected void onLoadPre() {}
 
-	protected void onLoadPost() {}
+	//protected void onLoadPost() {}
 
 	@Override
 	protected LuaValue hashget(LuaValue key) {

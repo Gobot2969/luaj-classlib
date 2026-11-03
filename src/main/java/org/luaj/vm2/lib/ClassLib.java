@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.luaj.vm2.ClassLuaTable;
-import org.luaj.vm2.Globals;
 import org.luaj.vm2.InstanceLuaTable;
 import org.luaj.vm2.LuaClassManager;
 import org.luaj.vm2.LuaTable;
@@ -13,7 +12,7 @@ import org.luaj.vm2.LuaValue;
 /**
  * Subclass of {@link LibFunction} which implements the {@code class} library.
  */
-public class ClassLib extends TwoArgFunction implements LuaClassManager {
+public class ClassLib extends TwoArgFunction {
 
 	public static final String CLASSNAME_KEY = "CLASSNAME";
 	public static final String CLASSNAME_BASE_KEY = "CLASSNAME_BASE";
@@ -27,8 +26,15 @@ public class ClassLib extends TwoArgFunction implements LuaClassManager {
 	 */
 	private Map<String, ClassLuaTable> classes = new HashMap<String, ClassLuaTable>();
 
+	private LuaClassManager classManager;
+
 	/** Creates the library; {@link org.luaj.vm2.Globals#load(LuaValue)} installs it. */
 	public ClassLib() {
+		this.classManager = new DefaultClassManager();
+	}
+
+	public ClassLib(LuaClassManager classManager) {
+		this.classManager = classManager;
 	}
 
 	/**
@@ -73,65 +79,53 @@ public class ClassLib extends TwoArgFunction implements LuaClassManager {
 		}
 	}
 
-	/**
-	 * MUST BE CALLED ON CLASS NAME AFTER ALL ITS SUPERCLASSES HAD THIS METHOD INVOKED ON THEM
-	 * @param className
-	 * @param globals
-	 */
-	public void loadClass(String className, Globals globals) {
-		ClassLuaTable classTable = this.classes.get(className);
-
-		updateInheritance(className);
-		
-		classTable.set("__index", classTable); // TODO check if this even does anything
-		
-		//globals.loadfile(classTable.getClassScript());
-	}
-
-	/**
-	 * Called whenever this class manager needs a new instance of a LuaClassTable. Allows overriding too.
-	 * @param className
-	 * @return
-	 */
-	protected ClassLuaTable createClassTable(String className) { // TODO check maybe if exist?
-		ClassLuaTable classLuaTable = new ClassLuaTable(this, className);
-		return classLuaTable;
-	}
-
-	public InstanceLuaTable createInstanceTable(ClassLuaTable classTable) {
-		return new InstanceLuaTable(classTable);
-	}
-
 	/** Makes {@code table} a class
 	 *  // TODO must have string CLASSNAME_KEY
 	 * // must optionally have CLASSNAME_BASE_KEY or CLASSNAME_BASE
 	 * // must return some lua errors or exceptions from some proper extension of LuaJ's
 	 * // if stuff is not found or wrong type etc
 	 */
-	public LuaTable registerClass(LuaTable table) {
-		String className = table.get(CLASSNAME_KEY).tojstring();
-		ClassLuaTable classTable = createClassTable(className);
+	public LuaTable registerClass(LuaTable table, LuaTable baseClassTable) {
+		// Register class portion
+		String className = table.get(CLASSNAME_KEY).tojstring(); // Make sure
+		String baseClassName = baseClassTable.get(CLASSNAME_KEY).tojstring(); // Could fail
 
-		String baseClassName = "idk"; // TODO
-
-		//classTable.setBaseClassName(baseClassName);
+		ClassLuaTable classTable = classManager.createClassTable(className, baseClassName);
 	 	classes.put(className, classTable); // Save class table to classman
-		
+
+		// Load class portion?
+		updateInheritance(className);
+		classTable.set("__index", classTable); // TODO check if this even does anything
+	
 		return classTable;
 	}
 
-	/** {@code class.bind(table [, superclass])}: Lua's side of {@link ClassLib#bind(LuaTable, LuaTable)}. */
-	final class RegisterFunction extends OneArgFunction {
+	/** {@code class.register(table [, superclass])}: Lua's side of {@link ClassLib#register(LuaTable, LuaTable)}. */
+	final class RegisterFunction extends TwoArgFunction {
 		@Override
-		public LuaValue call(LuaValue table) {
-			return registerClass(table.checktable());
+		public LuaValue call(LuaValue table, LuaValue baseClassTable) {
+			return registerClass(table.checktable(), baseClassTable.isnil() ? null : baseClassTable.checktable());
 		}
 	}
 
 	final class NewFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue table) {// Returns an InstanceLuaTable
-			return null; // TODO HERE CHECK if it's either string or the ClassLuaTable itself and return its new InstanceLuaTable. 
+			return ((ClassLuaTable)table).createInstance(); // TODO HERE CHECK if it's either string or the ClassLuaTable itself and return its new InstanceLuaTable. 
+		}
+	}
+
+	final class DefaultClassManager implements LuaClassManager {
+
+		@Override
+		public ClassLuaTable createClassTable(String className, String baseClassName) { // TODO check maybe if exist?
+			ClassLuaTable classLuaTable = new ClassLuaTable(this, className, baseClassName);
+			return classLuaTable;
+		}
+
+		@Override
+		public InstanceLuaTable createInstanceTable(ClassLuaTable classTable) {
+			return new InstanceLuaTable(classTable);
 		}
 	}
 }
