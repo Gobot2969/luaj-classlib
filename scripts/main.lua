@@ -51,3 +51,17 @@ ent2:info()
 
 -- Attempt to write readonly info
 ent2.CLASS = {}
+
+
+---------------------------------------------------------------
+-- super: five classes, each extending the one before. 1st, 3rd
+-- and 5th implement hello; 3rd and 5th call down with super.
+-- hello on a 5th prints three lines: 5th, 3rd, 1st (2nd and 4th
+-- implement nothing, so super skips them).
+---------------------------------------------------------------
+local C1 = class.register({ CLASSNAME = "c1", hello = function(self) print("hello from c1 (instance of " .. self.CLASSNAME .. ")") end })
+local C2 = class.register({ CLASSNAME = "c2" }, C1)
+local C3 = class.register({ CLASSNAME = "c3", hello = function(self) print("hello from c3") super.hello(self) end }, C2)
+local C4 = class.register({ CLASSNAME = "c4" }, C3)
+local C5 = class.register({ CLASSNAME = "c5", hello = function(self) print("hello from c5") super.hello(self) end }, C4)
+new(C5):hello()
