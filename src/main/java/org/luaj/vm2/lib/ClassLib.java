@@ -5,7 +5,7 @@ import java.util.Map;
 
 import org.luaj.vm2.ClassLuaTable;
 import org.luaj.vm2.InstanceLuaTable;
-import org.luaj.vm2.LuaClassManager;
+import org.luaj.vm2.ClassTableFactory;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 
@@ -26,14 +26,14 @@ public class ClassLib extends TwoArgFunction {
 	 */
 	private Map<String, ClassLuaTable> classes = new HashMap<String, ClassLuaTable>();
 
-	private LuaClassManager classManager;
+	private ClassTableFactory classManager;
 
 	/** Creates the library; {@link org.luaj.vm2.Globals#load(LuaValue)} installs it. */
 	public ClassLib() {
-		this.classManager = new DefaultClassManager();
+		this.classManager = new DefaultClassTableFactory();
 	}
 
-	public ClassLib(LuaClassManager classManager) {
+	public ClassLib(ClassTableFactory classManager) {
 		this.classManager = classManager;
 	}
 
@@ -59,9 +59,6 @@ public class ClassLib extends TwoArgFunction {
 		ClassLuaTable classTable = this.classes.get(className);
 		ClassLuaTable baseClassTable;
 
-		if (classTable.getBaseClassName().equals(className)) { // Class can't inherit itself
-			return;
-		}
 		baseClassTable = classes.get(classTable.getBaseClassName());
 		if (baseClassTable == null) {
 			return;
@@ -70,13 +67,7 @@ public class ClassLib extends TwoArgFunction {
 		// Set the class table's metatable to base class.
 		//classTable.setmetatable(baseClassTable); // This is oldmethod. Now we use newmethod which just copies values. No meta but instance to class relations.
 
-		for (LuaValue key : baseClassTable.keys()) {
-			if (key.isstring()) {
-				if (!key.tojstring().equals(CLASSNAME_BASE_KEY) && !key.tojstring().equals(CLASSNAME_KEY)) {
-					classTable.set(key, baseClassTable.get(key));
-				}
-			}
-		}
+		
 	}
 
 	/** Makes {@code table} a class
@@ -93,8 +84,24 @@ public class ClassLib extends TwoArgFunction {
 		ClassLuaTable classTable = classManager.createClassTable(className, baseClassName);
 	 	classes.put(className, classTable); // Save class table to classman
 
-		// Load class portion?
-		updateInheritance(className);
+		// Copy baseClassTable keys
+		for (LuaValue key : baseClassTable.keys()) {
+			if (key.isstring()) {
+				String k = key.tojstring();
+				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
+			}
+			classTable.rawset(key, baseClassTable.rawget(key));
+		}
+
+		// Copy table keys
+		for (LuaValue key : table.keys()) {
+			if (key.isstring()) {
+				String k = key.tojstring();
+				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
+			}
+			classTable.rawset(key, table.rawget(key));
+		}
+		
 		classTable.set("__index", classTable); // TODO check if this even does anything
 	
 		return classTable;
@@ -115,7 +122,7 @@ public class ClassLib extends TwoArgFunction {
 		}
 	}
 
-	final class DefaultClassManager implements LuaClassManager {
+	final class DefaultClassTableFactory implements ClassTableFactory {
 
 		@Override
 		public ClassLuaTable createClassTable(String className, String baseClassName) { // TODO check maybe if exist?

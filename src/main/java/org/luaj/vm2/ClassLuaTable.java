@@ -4,25 +4,18 @@ import org.luaj.vm2.lib.ClassLib;
 
 public class ClassLuaTable extends LuaTable {
 
-	protected LuaClassManager classManager;
+	protected ClassTableFactory classTableFactory;
 
 	private String className;
 	private LuaString classNameLua;
 	private String baseClassName;
 	private LuaString baseClassNameLua;
 
-	public ClassLuaTable(LuaClassManager classManager, String className, String baseClassName) {
-		this.classManager = classManager;
+	public ClassLuaTable(ClassTableFactory classTableFactory, String className, String baseClassName) {
+		this.classTableFactory = classTableFactory;
 		setClassName(className);
 		setBaseClassName(baseClassName);
 	}
-
-
-	//protected void onRegistered() {}
-
-	//protected void onLoadPre() {}
-
-	//protected void onLoadPost() {}
 
 	@Override
 	protected LuaValue hashget(LuaValue key) {
@@ -61,7 +54,7 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	public InstanceLuaTable createInstance() {
-		InstanceLuaTable instanceTable = classManager.createInstanceTable(this);
+		InstanceLuaTable instanceTable = classTableFactory.createInstanceTable(this);
 		instanceTable.setmetatable(this);
 		return instanceTable;
 	}
