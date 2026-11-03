@@ -10,13 +10,13 @@ package.path = package.path .. ";./scripts/?.lua;./?.lua"
 ---------------------------------------------------------------
 -- A class: a plain table of methods, bound at the end.
 local CAnimal = {
-    CLASSNAME="Animal"
+    __name="Animal"
 }
 function CAnimal:speak() return "..." end
 CAnimal = class.register(CAnimal)
 -- A subclass, extending Animal.
 local CDog = {
-    CLASSNAME="Dog"
+    __name="Dog"
 }
 function CDog:speak() return "Woof" end
 CDog = class.register(CDog, CAnimal)
@@ -50,7 +50,7 @@ ent2:info()
 
 
 -- Attempt to write readonly info
-ent2.CLASS = {}
+ent2.__class = {}
 
 
 ---------------------------------------------------------------
@@ -59,9 +59,9 @@ ent2.CLASS = {}
 -- hello on a 5th prints three lines: 5th, 3rd, 1st (2nd and 4th
 -- implement nothing, so super skips them).
 ---------------------------------------------------------------
-local C1 = class.register({ CLASSNAME = "c1", hello = function(self) print("hello from c1 (instance of " .. self.CLASSNAME .. ")") end })
-local C2 = class.register({ CLASSNAME = "c2" }, C1)
-local C3 = class.register({ CLASSNAME = "c3", hello = function(self) print("hello from c3") super.hello(self) end }, C2)
-local C4 = class.register({ CLASSNAME = "c4" }, C3)
-local C5 = class.register({ CLASSNAME = "c5", hello = function(self) print("hello from c5") super.hello(self) end }, C4)
+local C1 = class.register({ __name = "c1", hello = function(self) print("hello from c1 (instance of " .. self.__name .. ")") end })
+local C2 = class.register({ __name = "c2" }, C1)
+local C3 = class.register({ __name = "c3", hello = function(self) print("hello from c3") super.hello(self) end }, C2)
+local C4 = class.register({ __name = "c4" }, C3)
+local C5 = class.register({ __name = "c5", hello = function(self) print("hello from c5") super.hello(self) end }, C4)
 new(C5):hello()

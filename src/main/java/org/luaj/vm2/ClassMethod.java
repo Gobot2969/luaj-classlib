@@ -9,7 +9,7 @@ import org.luaj.vm2.lib.VarArgFunction;
  * A class's method: wraps the function a class table was registered with, so that {@code super} knows whose base
  * to look in while it runs.
  * <p>
- * {@code self} is always the instance, so {@code self.CLASS_BASE} is always the instance's class's base: a method
+ * {@code self} is always the instance, so {@code self.__base} is always the instance's class's base: a method
  * that calls its base's method through it calls itself again once two classes in a row do it. {@code super} is
  * the base of the class the running method was registered with instead, so every level goes one class up:
  * <pre>{@code

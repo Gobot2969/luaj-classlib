@@ -5,10 +5,17 @@ import java.util.Map;
 
 public class LuaClassManager {
 
-	public static final String CLASSNAME_KEY = "CLASSNAME";
-	public static final String CLASSNAME_BASE_KEY = "CLASSNAME_BASE";
-	public static final String CLASSTABLE_KEY = "CLASS";
-	public static final String CLASSTABLE_BASE_KEY = "CLASS_BASE";
+	// The system's fields on class tables (and through __index, on instances). Double-underscore lowercase, as
+	// Lua names its metatable fields: a class table is its instances' metatable. __name is also the key Lua 5.3+
+	// names a type by.
+	/** The class's name (lowercase). */
+	public static final String CLASSNAME_KEY = "__name";
+	/** The base class's name, "" for a class with no base. */
+	public static final String CLASSNAME_BASE_KEY = "__basename";
+	/** The class table itself. */
+	public static final String CLASSTABLE_KEY = "__class";
+	/** The base class table, nil for a class with no base. */
+	public static final String CLASSTABLE_BASE_KEY = "__base";
 
 	/**
 	 * A map of all loaded class tables: {@code <String className, LuaTable classTable>}
@@ -22,7 +29,7 @@ public class LuaClassManager {
 
 	/** Makes {@code table} a class
 	 *  // TODO must have string CLASSNAME_KEY
-	 * // must optionally have CLASSNAME_BASE_KEY or CLASSNAME_BASE
+	 * // must optionally have CLASSNAME_BASE_KEY
 	 * // must return some lua errors or exceptions from some proper extension of LuaJ's
 	 * // if stuff is not found or wrong type etc
 	 */
