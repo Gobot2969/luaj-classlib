@@ -37,10 +37,10 @@ public class ClassLuaTable extends LuaTable {
 					return baseClassNameLua;
 				case LuaClassManager.CLASS_SCRIPT_VAR:
 					return classScriptLua;
-				case LuaClassManager.CLASSMETA_SCRIPT_VAR:
-					return classmetaScriptLua;
-				case LuaClassManager.CLASSMETA_VAR:
-					return classmetaLua;
+				// case LuaClassManager.CLASSMETA_SCRIPT_VAR:
+				// 	return classmetaScriptLua;
+				// case LuaClassManager.CLASSMETA_VAR:
+				// 	return classmetaLua;
 				default:
 					break;
 			}
@@ -90,7 +90,7 @@ public class ClassLuaTable extends LuaTable {
 	void setClassmetaScript(String classmetaScript) {
 		this.classmetaScript = classmetaScript;
 		this.classmetaScriptLua = LuaValue.valueOf(this.classmetaScript);
-		this.set(LuaClassManager.CLASSMETA_SCRIPT_VAR, this.classmetaScriptLua);
+		// this.set(LuaClassManager.CLASSMETA_SCRIPT_VAR, this.classmetaScriptLua);
 	}
 	
 	
