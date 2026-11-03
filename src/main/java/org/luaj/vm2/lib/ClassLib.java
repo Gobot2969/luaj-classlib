@@ -16,6 +16,8 @@ public class ClassLib extends TwoArgFunction {
 
 	public static final String CLASSNAME_KEY = "CLASSNAME";
 	public static final String CLASSNAME_BASE_KEY = "CLASSNAME_BASE";
+	public static final String CLASSTABLE_KEY = "CLASS";
+	public static final String CLASSTABLE_BASE_KEY = "CLASS_BASE";
 
 
 	/** The name of the library's table: the global {@code class}. */
@@ -78,8 +80,8 @@ public class ClassLib extends TwoArgFunction {
 	 */
 	public LuaTable registerClass(LuaTable table, LuaTable baseClassTable) {
 		// Register class portion
-		String className = table.get(CLASSNAME_KEY).tojstring(); // Make sure
-		String baseClassName = baseClassTable.get(CLASSNAME_KEY).tojstring(); // Could fail
+		String className = table.get(CLASSNAME_KEY).tojstring(); // TODO Make sure non exists
+		String baseClassName = baseClassTable.get(CLASSNAME_KEY).tojstring(); // TODO Could fail
 
 		ClassLuaTable classTable = classManager.createClassTable(className, baseClassName);
 	 	classes.put(className, classTable); // Save class table to classman
