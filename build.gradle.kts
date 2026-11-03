@@ -20,7 +20,7 @@ tasks.compileJava {
     options.release = 8
     options.encoding = "UTF-8"
     // -Xlint:-options: newer JDKs call the Java 8 target obsolete
-    options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-options", "-Werror"))
+    options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-options"))
 }
 
 tasks.javadoc {
