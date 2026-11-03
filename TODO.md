@@ -12,11 +12,11 @@ Where the library doesn't do what the README says yet.
   after `class.register` raises "not inside a class method"). Wrapping functions as they're set on a class
   table (`ClassLuaTable.rawset`) would fix it.
 
-- **A base that isn't registered yet becomes no base, silently.** `class.register(t, class.get("Gun"))`
-  before `Gun` is registered (or with the class's own name) passes nil, so the class is registered as a
-  root instead of failing rule 2 (README, Hierarchy). `register` can't tell that nil from "no base";
-  taking the base by name too (`class.register(t, "Gun")`, an error if `Gun` isn't registered) would let
-  scripts say which they mean.
+- **A base passed as `class.get(...)` before it's registered becomes no base, silently.**
+  `class.register(t, class.get("Gun"))` before `Gun` is registered passes nil, so the class is registered
+  as a root instead of failing rule 2 (README, Hierarchy). Naming the base in the table
+  (`__classname_base = "Gun"`) raises an error instead; `register` could also take the name as its second
+  argument (`class.register(t, "Gun")`).
 
 ## Potential gaps
 

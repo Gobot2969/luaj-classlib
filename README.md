@@ -66,7 +66,9 @@ and `super`. `class` holds `class.register` and `class.get`.
 **Defining a class.** A class is defined as a plain table: its `__classname` (a string), and its methods and
 fields. `class.register(table [, base])` makes it a class and returns the class table. That's a new table:
 the one passed in is only read, so a script can build it however it likes (a local, a global like `ENT`
-filled by another file) and drop it after. `base` is a class returned by `class.register` or `class.get`.
+filled by another file) and drop it after. `base` is a class returned by `class.register` or `class.get`;
+or the table names its base with `__classname_base` (a registered class's name). When both are given they
+must be the same class.
 
 **Names.** A class's name is its `__classname`, exactly as written: names are case-sensitive (`"Dog"` and
 `"dog"` are two classes). `.` is a delimiter (`"weapon.pistol"`), so a name can't be empty, start or end
@@ -87,7 +89,7 @@ own replace the base's of the same name. The copy is taken when the class is reg
 a base afterwards don't reach classes already registered on it. Register bases first, and define a class's
 methods before registering it.
 
-**Instances.** `new(Class)` makes an instance: a table of its own, whose metatable is its class (with
+**Instances.** `new(Class)` (or `new("name")`, the class registered by that name) makes an instance: a table of its own, whose metatable is its class (with
 `__index` the class). Fields set on an instance are the instance's; methods and the class's fields are
 found on the class.
 
@@ -109,8 +111,9 @@ calls, errors and coroutines (a method can yield in the middle). It's only valid
 outside one (including from a callback called after its method returned), or in a class with no base, it
 raises a Lua error. The methods are the functions the table held when it was registered.
 
-**Errors.** Misuse (a missing, non-string or invalid `__classname`, a base that isn't a class, `new` on
-something that isn't a class, a name registered twice) raises a Lua error naming the problem.
+**Errors.** Misuse (a missing, non-string or invalid `__classname`, a base that isn't a class, a
+`__classname_base` that isn't registered or isn't the base given, `new` on something that isn't a class or a
+registered name, a name registered twice) raises a Lua error naming the problem.
 
 ## Building
 

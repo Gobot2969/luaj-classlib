@@ -13,7 +13,7 @@ public class ClassLib extends TwoArgFunction {
 	/** The name of the library's table: the global {@code class}. */
 	private static final String PACKAGE_NAME = "class";
 
-	/**  */
+	/** Registers and looks up this library's classes. */
 	private LuaClassManager classManager;
 
 	/** Creates the library; {@link org.luaj.vm2.Globals#load(LuaValue)} installs it. */
@@ -21,7 +21,11 @@ public class ClassLib extends TwoArgFunction {
 		this.classManager = new LuaClassManager();
 	}
 
-	/** */
+	/**
+	 * Creates the library with a class manager of your own (to make class or instance tables of your own).
+	 *
+	 * @param classManager registers and looks up the library's classes
+	 */
 	public ClassLib(LuaClassManager classManager) {
 		this.classManager = classManager;
 	}
@@ -45,6 +49,7 @@ public class ClassLib extends TwoArgFunction {
 		return lib;
 	}
 
+	/** {@code class.get(name)}: the class registered under exactly that name, or nil. */
 	final class GetFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue className) {
@@ -53,7 +58,7 @@ public class ClassLib extends TwoArgFunction {
 		}
 	}
 
-	/** {@code class.register(table [, superclass])}: Lua's side of {@link ClassLib#register(LuaTable, LuaTable)}. */
+	/** {@code class.register(table [, superclass])}: Lua's side of {@link LuaClassManager#registerClass(LuaTable, ClassLuaTable)}. */
 	final class RegisterFunction extends TwoArgFunction {
 		@Override
 		public LuaValue call(LuaValue table, LuaValue baseClassTable) {
@@ -64,13 +69,21 @@ public class ClassLib extends TwoArgFunction {
 		}
 	}
 
+	/** {@code new(class)} or {@code new(name)}: a new instance of the class, or of the class registered by that name. */
 	final class NewFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue table) {// Returns an InstanceLuaTable
-			if (!(table instanceof ClassLuaTable)) {
-				return argerror(1, "class expected, got " + table.typename());
+			if (table.isstring() && !table.isnumber()) {
+				ClassLuaTable named = classManager.getClassTable(table.tojstring());
+				if (named == null) {
+					return argerror(1, "no class registered as '" + table.tojstring() + "'");
+				}
+				return named.createInstance();
 			}
-			return ((ClassLuaTable) table).createInstance(); // TODO also take a class name (a string) and look it up
+			if (!(table instanceof ClassLuaTable)) {
+				return argerror(1, "class or class name expected, got " + table.typename());
+			}
+			return ((ClassLuaTable) table).createInstance();
 		}
 	}
 }

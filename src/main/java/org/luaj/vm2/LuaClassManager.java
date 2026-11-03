@@ -3,6 +3,11 @@ package org.luaj.vm2;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Registers and looks up classes for one {@link org.luaj.vm2.lib.ClassLib}: makes class tables from the tables
+ * scripts register, and instance tables of them. Subclass it to make class or instance tables of your own
+ * ({@link #createClassTable}, {@link #createInstanceTable}).
+ */
 public class LuaClassManager {
 
 	// The system's fields on class tables (and through __index, on instances). Double-underscore lowercase, as
@@ -45,16 +50,34 @@ public class LuaClassManager {
 		return null;
 	}
 
-	protected ClassLuaTable createClassTable(String className, ClassLuaTable baseClassTable) { // TODO check maybe if exist?
+	/**
+	 * Makes the table of a new class; {@link #registerClass} fills it. Override it to use a subclass of
+	 * {@link ClassLuaTable}.
+	 *
+	 * @param className      the class's name, already checked and not registered yet
+	 * @param baseClassTable its base class, or {@code null} for none
+	 * @return the new class table
+	 */
+	protected ClassLuaTable createClassTable(String className, ClassLuaTable baseClassTable) {
 		ClassLuaTable classLuaTable = new ClassLuaTable(this, className, baseClassTable);
 		return classLuaTable;
 	}
 
-	/** Makes {@code table} a class
-	 *  // TODO must have string CLASSNAME_KEY
-	 * // must optionally have CLASSNAME_BASE_KEY
-	 * // must return some lua errors or exceptions from some proper extension of LuaJ's
-	 * // if stuff is not found or wrong type etc
+	/**
+	 * Makes {@code table} a class and registers it.
+	 * <p>
+	 * {@code table} must have a {@link #CLASSNAME_KEY} string, a valid name ({@link #checkName}) not registered yet.
+	 * Its base is {@code baseClassTable}, or else the class its {@link #CLASSNAME_BASE_KEY} string names, which must
+	 * be registered already; with neither, the class has no base. When both are given they must be the same class.
+	 * <p>
+	 * The new class gets a copy of its base's fields and methods, then {@code table}'s: its functions become this
+	 * class's methods ({@link ClassMethod}). {@code table} itself is only read.
+	 *
+	 * @param table          the class's name, base name and members
+	 * @param baseClassTable its base class, or {@code null} to take it from {@code table} (or have none)
+	 * @return the new class table
+	 * @throws LuaError if the name is missing, not a string, invalid or already registered, or the base named in
+	 *                  {@code table} isn't registered or isn't {@code baseClassTable}
 	 */
 	public LuaTable registerClass(LuaTable table, ClassLuaTable baseClassTable) {
 		// Register class portion
@@ -69,6 +92,23 @@ public class LuaClassManager {
 		}
 		if (classes.containsKey(className)) {
 			throw new LuaError("class '" + className + "' is already registered");
+		}
+
+		// The base as the table names it, if it does: it must be registered, and be the base given (if any)
+		LuaValue baseName = table.get(CLASSNAME_BASE_KEY);
+		if (!baseName.isnil()) {
+			if (!baseName.isstring() || baseName.isnumber()) {
+				throw new LuaError("class " + CLASSNAME_BASE_KEY + " must be a string, got " + baseName.typename());
+			}
+			ClassLuaTable named = getClassTable(baseName.tojstring());
+			if (named == null) {
+				throw new LuaError("class '" + className + "': base class '" + baseName.tojstring() + "' isn't registered");
+			}
+			if (baseClassTable != null && baseClassTable != named) {
+				throw new LuaError("class '" + className + "': " + CLASSNAME_BASE_KEY + " '" + baseName.tojstring()
+						+ "' isn't the base class given ('" + baseClassTable.getClassName() + "')");
+			}
+			baseClassTable = named;
 		}
 
 		ClassLuaTable classTable = createClassTable(className, baseClassTable);
@@ -94,11 +134,18 @@ public class LuaClassManager {
 			classTable.rawset(key, ClassMethod.wrap(table.rawget(key), classTable));
 		}
 		
-		classTable.set("__index", classTable); // TODO check if this even does anything
+		classTable.set("__index", classTable); // Instances (whose metatable is this class) find its methods and fields through it
 	
 		return classTable;
 	}
 
+	/**
+	 * Makes the table of a new instance of a class; {@link ClassLuaTable#createInstance} gives it its metatable.
+	 * Override it to use a subclass of {@link InstanceLuaTable}.
+	 *
+	 * @param classTable the instance's class
+	 * @return the new instance table
+	 */
 	public InstanceLuaTable createInstanceTable(ClassLuaTable classTable) {
 		return new InstanceLuaTable(classTable);
 	}
