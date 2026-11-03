@@ -8,7 +8,7 @@ public class LuaClassManager {
 	// The system's fields on class tables (and through __index, on instances). Double-underscore lowercase, as
 	// Lua names its metatable fields: a class table is its instances' metatable. __name is also the key Lua 5.3+
 	// names a type by.
-	/** The class's name (lowercase). */
+	/** The class's name, as registered (case-sensitive). */
 	public static final String CLASSNAME_KEY = "__name";
 	/** The base class's name, "" for a class with no base. */
 	public static final String CLASSNAME_BASE_KEY = "__basename";
@@ -18,18 +18,32 @@ public class LuaClassManager {
 	public static final String CLASSTABLE_BASE_KEY = "__base";
 
 	/**
-	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by normalized name
+	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by exact name
 	 */
 	private Map<String, ClassLuaTable> classes = new HashMap<String, ClassLuaTable>();
 
 	/**
-	 * A class name as classes are stored and looked up by: lowercase, so "Dog" and "dog" are the same class.
+	 * What's wrong with a class name, if anything. Names are case-sensitive ("Dog" and "dog" are two classes) and
+	 * use {@code .} as a delimiter ("weapon.pistol"), so a name can't be empty, start or end with a dot, or have
+	 * two dots in a row.
 	 *
-	 * @param className a class name as written
-	 * @return the name to store and look it up by
+	 * @param className a class name
+	 * @return why it isn't a valid class name, or {@code null} if it is
 	 */
-	public static String normalizeName(String className) {
-		return className.toLowerCase();
+	public static String checkName(String className) {
+		if (className.isEmpty()) {
+			return "must not be empty";
+		}
+		if (className.startsWith(".")) {
+			return "must not start with '.'";
+		}
+		if (className.endsWith(".")) {
+			return "must not end with '.'";
+		}
+		if (className.contains("..")) {
+			return "must not have two '.' in a row";
+		}
+		return null;
 	}
 
 	protected ClassLuaTable createClassTable(String className, ClassLuaTable baseClassTable) { // TODO check maybe if exist?
@@ -50,15 +64,16 @@ public class LuaClassManager {
 			throw new LuaError("class " + CLASSNAME_KEY + " must be a string, got " + name.typename());
 		}
 		String className = name.tojstring();
-		if (className.isEmpty()) {
-			throw new LuaError("class " + CLASSNAME_KEY + " must not be empty");
+		String invalid = checkName(className);
+		if (invalid != null) {
+			throw new LuaError("class " + CLASSNAME_KEY + " '" + className + "' " + invalid);
 		}
-		if (classes.containsKey(normalizeName(className))) {
-			throw new LuaError("class '" + normalizeName(className) + "' is already registered");
+		if (classes.containsKey(className)) {
+			throw new LuaError("class '" + className + "' is already registered");
 		}
 
 		ClassLuaTable classTable = createClassTable(className, baseClassTable);
-		classes.put(classTable.getClassName(), classTable); // Save class table to classman, by its normalized name
+		classes.put(className, classTable); // Save class table to classman
 
 		// Copy baseClassTable keys
 		if (baseClassTable != null) {
@@ -90,13 +105,13 @@ public class LuaClassManager {
 	}
 
 	/**
-	 * The registered class of that name, in any case.
+	 * The registered class of exactly that name (case-sensitive).
 	 *
 	 * @param className the class's name
 	 * @return the class, or {@code null} if none is registered by that name
 	 */
 	public ClassLuaTable getClassTable(String className) {
-		return this.classes.get(normalizeName(className));
+		return this.classes.get(className);
 	}
 
 }

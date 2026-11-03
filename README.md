@@ -68,8 +68,10 @@ fields. `class.register(table [, base])` makes it a class and returns the class 
 the one passed in is only read, so a script can build it however it likes (a local, a global like `ENT`
 filled by another file) and drop it after. `base` is a class returned by `class.register` or `class.get`.
 
-**Names.** A class's name is its `__name`, lowercased: `"Dog"` and `"dog"` are the same class.
-`class.get(name)` returns the registered class of that name, or nil. Each name is registered once.
+**Names.** A class's name is its `__name`, exactly as written: names are case-sensitive (`"Dog"` and
+`"dog"` are two classes). `.` is a delimiter (`"weapon.pistol"`), so a name can't be empty, start or end
+with a dot, or have two dots in a row. Each name is registered once. `class.get(name)` returns the class
+registered under exactly that name, or nil.
 
 **Inheritance.** Registering gives the class a copy of its base's fields and methods, then its own: its
 own replace the base's of the same name. The copy is taken when the class is registered: methods added to
@@ -85,7 +87,7 @@ them; scripts read them and don't set them.
 
 | Field | Is |
 |---|---|
-| `__name` | the class's name (lowercase) |
+| `__name` | the class's name, as registered |
 | `__basename` | its base's name, `""` for a class with no base |
 | `__class` | the class table itself |
 | `__base` | the base class table, nil for a class with no base |
@@ -98,8 +100,8 @@ calls, errors and coroutines (a method can yield in the middle). It's only valid
 outside one (including from a callback called after its method returned), or in a class with no base, it
 raises a Lua error. The methods are the functions the table held when it was registered.
 
-**Errors.** Misuse (a missing or non-string `__name`, a base that isn't a class, `new` on something that
-isn't a class, a name registered twice) raises a Lua error naming the problem.
+**Errors.** Misuse (a missing, non-string or invalid `__name`, a base that isn't a class, `new` on
+something that isn't a class, a name registered twice) raises a Lua error naming the problem.
 
 ## Building
 

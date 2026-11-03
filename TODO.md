@@ -6,8 +6,6 @@ Open work on luaj-classlib, beside the intended behaviour in the [README](README
 
 Where the library doesn't do what the README says yet.
 
-- **Lowercasing follows the JVM's language.** On a Turkish locale `"ITEM"` becomes `"ıtem"` (dotless i);
-  `LuaClassManager.normalizeName` should use `toLowerCase(Locale.ROOT)`.
 - **Writes to the system fields are ignored silently** (`C.__name = "x"` is stored, but `__name` still
   reads the real name); they should raise an error.
 - **Methods added to a class after it's registered have no `super`** (`function C:f() super.f(self) end`
