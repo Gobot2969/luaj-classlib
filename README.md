@@ -73,6 +73,15 @@ filled by another file) and drop it after. `base` is a class returned by `class.
 with a dot, or have two dots in a row. Each name is registered once. `class.get(name)` returns the class
 registered under exactly that name, or nil.
 
+**Hierarchy.** Classes don't have to share a common ancestor: any class, at any point in a hierarchy, may
+have no base (nil), and there can be any number of root classes. The only rules:
+
+1. A class may not inherit from itself, directly or through other classes.
+2. When a class is registered, its base class (and so all of its ancestors) must already be registered.
+
+Both hold by construction: a base is a class that `class.register` returned before, and a class only exists
+once its own `class.register` returns, so no chain can come back to it.
+
 **Inheritance.** Registering gives the class a copy of its base's fields and methods, then its own: its
 own replace the base's of the same name. The copy is taken when the class is registered: methods added to
 a base afterwards don't reach classes already registered on it. Register bases first, and define a class's
