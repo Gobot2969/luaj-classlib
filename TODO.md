@@ -6,14 +6,8 @@ Open work on luaj-classlib, beside the intended behaviour in the [README](README
 
 Where the library doesn't do what the README says yet.
 
-- **`class.get` of an unknown name crashes** (a Java `NullPointerException`) instead of returning nil.
-- **Names aren't case-insensitive yet.** Classes are stored under `__name` as written, while their
-  `__name` is lowercased, so `{ __name = "Dog" }` is found by `class.get("Dog")` only.
 - **Lowercasing follows the JVM's language.** On a Turkish locale `"ITEM"` becomes `"ıtem"` (dotless i);
-  use `toLowerCase(Locale.ROOT)`.
-- **Misuse gives Java exceptions, not Lua errors:** a base that isn't a class or `new` on something that
-  isn't one (`ClassCastException`). A missing `__name` is accepted (the class is named `"nil"`), and a
-  name registered twice replaces the first class silently.
+  `LuaClassManager.normalizeName` should use `toLowerCase(Locale.ROOT)`.
 - **Writes to the system fields are ignored silently** (`C.__name = "x"` is stored, but `__name` still
   reads the real name); they should raise an error.
 - **Methods added to a class after it's registered have no `super`** (`function C:f() super.f(self) end`

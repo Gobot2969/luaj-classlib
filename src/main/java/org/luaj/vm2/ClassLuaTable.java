@@ -47,7 +47,7 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	void setClassName(String className) {
-		this.className = className.toLowerCase();
+		this.className = LuaClassManager.normalizeName(className);
 		this.classNameLua = LuaValue.valueOf(this.className);
 		this.set(LuaClassManager.CLASSNAME_KEY, this.classNameLua);
 	}
@@ -57,7 +57,7 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	void setBaseClassName(String baseClassName) {
-		this.baseClassName = baseClassName.toLowerCase();
+		this.baseClassName = LuaClassManager.normalizeName(baseClassName);
 		this.baseClassNameLua = LuaValue.valueOf(this.baseClassName);
 		this.set(LuaClassManager.CLASSNAME_BASE_KEY, this.baseClassNameLua);
 	}

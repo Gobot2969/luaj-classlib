@@ -18,9 +18,19 @@ public class LuaClassManager {
 	public static final String CLASSTABLE_BASE_KEY = "__base";
 
 	/**
-	 * A map of all loaded class tables: {@code <String className, LuaTable classTable>}
+	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by normalized name
 	 */
 	private Map<String, ClassLuaTable> classes = new HashMap<String, ClassLuaTable>();
+
+	/**
+	 * A class name as classes are stored and looked up by: lowercase, so "Dog" and "dog" are the same class.
+	 *
+	 * @param className a class name as written
+	 * @return the name to store and look it up by
+	 */
+	public static String normalizeName(String className) {
+		return className.toLowerCase();
+	}
 
 	protected ClassLuaTable createClassTable(String className, ClassLuaTable baseClassTable) { // TODO check maybe if exist?
 		ClassLuaTable classLuaTable = new ClassLuaTable(this, className, baseClassTable);
@@ -35,10 +45,20 @@ public class LuaClassManager {
 	 */
 	public LuaTable registerClass(LuaTable table, ClassLuaTable baseClassTable) {
 		// Register class portion
-		String className = table.get(CLASSNAME_KEY).tojstring(); // TODO Make sure non exists
+		LuaValue name = table.get(CLASSNAME_KEY);
+		if (!name.isstring() || name.isnumber()) {
+			throw new LuaError("class " + CLASSNAME_KEY + " must be a string, got " + name.typename());
+		}
+		String className = name.tojstring();
+		if (className.isEmpty()) {
+			throw new LuaError("class " + CLASSNAME_KEY + " must not be empty");
+		}
+		if (classes.containsKey(normalizeName(className))) {
+			throw new LuaError("class '" + normalizeName(className) + "' is already registered");
+		}
 
 		ClassLuaTable classTable = createClassTable(className, baseClassTable);
-	 	classes.put(className, classTable); // Save class table to classman
+		classes.put(classTable.getClassName(), classTable); // Save class table to classman, by its normalized name
 
 		// Copy baseClassTable keys
 		if (baseClassTable != null) {
@@ -69,8 +89,14 @@ public class LuaClassManager {
 		return new InstanceLuaTable(classTable);
 	}
 
+	/**
+	 * The registered class of that name, in any case.
+	 *
+	 * @param className the class's name
+	 * @return the class, or {@code null} if none is registered by that name
+	 */
 	public ClassLuaTable getClassTable(String className) {
-		return this.classes.get(className);
+		return this.classes.get(normalizeName(className));
 	}
 
 }
