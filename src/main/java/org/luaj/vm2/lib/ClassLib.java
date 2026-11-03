@@ -1,6 +1,7 @@
 package org.luaj.vm2.lib;
 
 import org.luaj.vm2.ClassLuaTable;
+import org.luaj.vm2.ClassMethod;
 import org.luaj.vm2.LuaClassManager;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
@@ -39,6 +40,7 @@ public class ClassLib extends TwoArgFunction {
 		lib.set("register", new RegisterFunction());
 		env.set(PACKAGE_NAME, lib);
 		env.set("new", new NewFunction());
+		env.set("super", ClassMethod.superTable());
 		if (!env.get("package").isnil()) env.get("package").get("loaded").set(PACKAGE_NAME, lib);
 		return lib;
 	}
@@ -46,7 +48,8 @@ public class ClassLib extends TwoArgFunction {
 	final class GetFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue className) {
-			return classManager.getClassTable(className.checkjstring());
+			ClassLuaTable classTable = classManager.getClassTable(className.checkjstring());
+			return classTable != null ? classTable : NIL;
 		}
 	}
 
@@ -54,14 +57,20 @@ public class ClassLib extends TwoArgFunction {
 	final class RegisterFunction extends TwoArgFunction {
 		@Override
 		public LuaValue call(LuaValue table, LuaValue baseClassTable) {
-			return classManager.registerClass(table.checktable(), baseClassTable.isnil() ? null : (ClassLuaTable)baseClassTable.checktable()); // TODO properly check and handle cast
+			if (!baseClassTable.isnil() && !(baseClassTable instanceof ClassLuaTable)) {
+				return argerror(2, "class expected, got " + baseClassTable.typename());
+			}
+			return classManager.registerClass(table.checktable(), baseClassTable.isnil() ? null : (ClassLuaTable) baseClassTable);
 		}
 	}
 
 	final class NewFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue table) {// Returns an InstanceLuaTable
-			return ((ClassLuaTable)table).createInstance(); // TODO HERE CHECK if it's either string or the ClassLuaTable itself and return its new InstanceLuaTable. 
+			if (!(table instanceof ClassLuaTable)) {
+				return argerror(1, "class expected, got " + table.typename());
+			}
+			return ((ClassLuaTable) table).createInstance(); // TODO also take a class name (a string) and look it up
 		}
 	}
 }

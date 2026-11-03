@@ -33,7 +33,7 @@ public class ClassLuaTable extends LuaTable {
 				case LuaClassManager.CLASSTABLE_KEY:
 					return classTable;
 				case LuaClassManager.CLASSTABLE_BASE_KEY:
-					return baseClassTable;
+					return baseClassTable == null ? NIL : baseClassTable; // nil, not Java null, for a root class
 				default:
 					break;
 			}
@@ -47,7 +47,7 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	void setClassName(String className) {
-		this.className = className.toLowerCase();
+		this.className = className;
 		this.classNameLua = LuaValue.valueOf(this.className);
 		this.set(LuaClassManager.CLASSNAME_KEY, this.classNameLua);
 	}
@@ -57,7 +57,7 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	void setBaseClassName(String baseClassName) {
-		this.baseClassName = baseClassName.toLowerCase();
+		this.baseClassName = baseClassName;
 		this.baseClassNameLua = LuaValue.valueOf(this.baseClassName);
 		this.set(LuaClassManager.CLASSNAME_BASE_KEY, this.baseClassNameLua);
 	}
