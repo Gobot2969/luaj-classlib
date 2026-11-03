@@ -21,7 +21,7 @@ public class LuaClassManager {
 	// public static final String CLASSMETA_VAR = "CLASSMETA";
 	
 	/**
-	 * A map of all loaded class tables <String className, LuaTable classTable>
+	 * A map of all loaded class tables: {@code <String className, LuaTable classTable>}
 	 */
 	public Map<String, ClassLuaTable> classes;
 	
