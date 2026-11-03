@@ -66,7 +66,7 @@ public class ClassLib extends TwoArgFunction implements LuaClassManager {
 
 		for (LuaValue key : baseClassTable.keys()) {
 			if (key.isstring()) {
-				if (!key.tojstring().equals(CLASSNAME_BASE_VAR) && !key.tojstring().equals(CLASSNAME_VAR)) {
+				if (!key.tojstring().equals(CLASSNAME_BASE_KEY) && !key.tojstring().equals(CLASSNAME_KEY)) {
 					classTable.set(key, baseClassTable.get(key));
 				}
 			}
