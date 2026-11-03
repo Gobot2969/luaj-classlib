@@ -11,10 +11,16 @@ public class ClassLuaTable extends LuaTable {
 	private String baseClassName;
 	private LuaString baseClassNameLua;
 
-	public ClassLuaTable(ClassTableFactory classTableFactory, String className, String baseClassName) {
+	private ClassLuaTable classTable;
+	private ClassLuaTable baseClassTable;
+
+	public ClassLuaTable(ClassTableFactory classTableFactory, String className, ClassLuaTable baseClassTable) {
 		this.classTableFactory = classTableFactory;
 		setClassName(className);
-		setBaseClassName(baseClassName);
+		setBaseClassName(baseClassTable.getClassName());
+
+		this.classTable = this;
+		this.baseClassTable = baseClassTable;
 	}
 
 	@Override
@@ -25,6 +31,10 @@ public class ClassLuaTable extends LuaTable {
 					return classNameLua;
 				case ClassLib.CLASSNAME_BASE_KEY:
 					return baseClassNameLua;
+				case ClassLib.CLASSTABLE_KEY:
+					return classTable;
+				case ClassLib.CLASSTABLE_BASE_KEY:
+					return baseClassTable;
 				default:
 					break;
 			}
@@ -57,6 +67,14 @@ public class ClassLuaTable extends LuaTable {
 		InstanceLuaTable instanceTable = classTableFactory.createInstanceTable(this);
 		instanceTable.setmetatable(this);
 		return instanceTable;
+	}
+
+	public ClassLuaTable getClassTable() {
+		return this.classTable;
+	}
+
+	public ClassLuaTable getBaseClassTable() {
+		return this.baseClassTable;
 	}
 
 }
