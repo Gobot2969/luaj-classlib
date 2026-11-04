@@ -12,6 +12,8 @@ public class ClassLuaTable extends LuaTable {
 
 	private String className;
 	private LuaString classNameLua;
+	private String shortName;
+	private LuaString shortNameLua;
 	private String baseClassName;
 	private LuaString baseClassNameLua;
 
@@ -42,6 +44,8 @@ public class ClassLuaTable extends LuaTable {
 			switch(key.tojstring()) {
 				case LuaClassManager.CLASSNAME_KEY:
 					return classNameLua;
+				case LuaClassManager.CLASSNAME_SHORT_KEY:
+					return shortNameLua;
 				case LuaClassManager.CLASSNAME_BASE_KEY:
 					return baseClassNameLua;
 				case LuaClassManager.CLASSTABLE_KEY:
@@ -65,6 +69,14 @@ public class ClassLuaTable extends LuaTable {
 		this.className = className;
 		this.classNameLua = LuaValue.valueOf(this.className);
 		this.set(LuaClassManager.CLASSNAME_KEY, this.classNameLua);
+		this.shortName = LuaClassManager.shortName(className);
+		this.shortNameLua = LuaValue.valueOf(this.shortName);
+		this.set(LuaClassManager.CLASSNAME_SHORT_KEY, this.shortNameLua);
+	}
+
+	/** @return the last part of the class's name, after its last dot; the whole name if it has none */
+	public String getShortName() {
+		return shortName;
 	}
 
 	/** @return the base class's name, {@code ""} for a class with no base */

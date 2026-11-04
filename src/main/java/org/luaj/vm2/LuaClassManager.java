@@ -12,14 +12,16 @@ public class LuaClassManager {
 
 	// The system's fields on class tables (and through __index, on instances). Double-underscore lowercase, as
 	// Lua names its metatable fields: a class table is its instances' metatable.
-	/** The class's name, as registered (case-sensitive). */
+	/** The class's name, as registered (case-sensitive), e.g. {@code "weapon.pistol"}. */
 	public static final String CLASSNAME_KEY = "__classname";
-	/** The base class's name, "" for a class with no base. */
-	public static final String CLASSNAME_BASE_KEY = "__classname_base";
+	/** The last part of the class's name, after its last dot ({@code "pistol"}); the whole name if it has none. */
+	public static final String CLASSNAME_SHORT_KEY = "__shortname";
+	/** The base class's {@link #CLASSNAME_KEY}, "" for a class with no base. */
+	public static final String CLASSNAME_BASE_KEY = "__basename";
 	/** The class table itself. */
 	public static final String CLASSTABLE_KEY = "__class";
 	/** The base class table, nil for a class with no base. */
-	public static final String CLASSTABLE_BASE_KEY = "__class_base";
+	public static final String CLASSTABLE_BASE_KEY = "__base";
 
 	/**
 	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by exact name
@@ -48,6 +50,17 @@ public class LuaClassManager {
 			return "must not have two '.' in a row";
 		}
 		return null;
+	}
+
+	/**
+	 * The short name of a class name: its last part, after its last dot ({@code "weapon.pistol"} gives
+	 * {@code "pistol"}), or the whole name if it has none. {@link #checkName} guarantees there is a last part.
+	 *
+	 * @param className a valid class name
+	 * @return its short name
+	 */
+	public static String shortName(String className) {
+		return className.substring(className.lastIndexOf('.') + 1);
 	}
 
 	/**
@@ -119,7 +132,7 @@ public class LuaClassManager {
 			for (LuaValue key : baseClassTable.keys()) {
 				if (key.isstring()) {
 					String k = key.tojstring();
-					if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
+					if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
 				}
 				classTable.rawset(key, baseClassTable.rawget(key));
 			}
@@ -129,7 +142,7 @@ public class LuaClassManager {
 		for (LuaValue key : table.keys()) {
 			if (key.isstring()) {
 				String k = key.tojstring();
-				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
+				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
 			}
 			classTable.rawset(key, ClassMethod.wrap(table.rawget(key), classTable));
 		}
