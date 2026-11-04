@@ -108,7 +108,10 @@ local p = new(Pistol, 12, true)   -- p.ammo == 12, p.silenced == true
 ```
 
 Constructors are copied into subclasses like any other method: a class without its own `__constr` has its
-nearest ancestor's, and `super.__constr` reaches the nearest ancestor that has one.
+nearest ancestor's, and `super.__constr` reaches the nearest ancestor that has one. A root class without one
+gets a default constructor that does nothing (copied down the same way), so every class has a `__constr`,
+and a constructor can always call `super.__constr` when its class has a base. What `new` costs is one call to
+the class's constructor plus the supercalls constructors make: classes without one of their own add nothing.
 
 **System fields.** Every class has these, and its instances see them through the class. The library keeps
 them; scripts read them and don't set them.

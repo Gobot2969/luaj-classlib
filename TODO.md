@@ -18,9 +18,6 @@ Where the library doesn't do what the README says yet.
   (`__basename = "Gun"`) raises an error instead; `register` could also take the name as its second
   argument (`class.register(t, "Gun")`).
 
-- **`super.__constr` when no ancestor has a constructor** is nil, so calling it errors with "attempt to
-  call a nil value". It could be a function that does nothing, so a constructor can always call up.
-
 ## Potential gaps
 
 Not decided: behaviour that may need changing.

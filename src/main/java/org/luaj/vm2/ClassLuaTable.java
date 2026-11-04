@@ -124,7 +124,7 @@ public class ClassLuaTable extends LuaTable {
 	 * The constructor this class's instances run: its {@link LuaClassManager#CONSTRUCTOR_KEY}, its own or the one
 	 * copied from its base when it was registered (one table read, no lookup up the hierarchy).
 	 *
-	 * @return the constructor, or nil if the class has none
+	 * @return the constructor; for a registered class never nil (see {@link LuaClassManager#DEFAULT_CONSTRUCTOR})
 	 */
 	public LuaValue getConstructor() {
 		return rawget(LuaClassManager.CONSTRUCTOR_KEY);
