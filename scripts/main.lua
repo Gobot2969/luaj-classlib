@@ -16,10 +16,11 @@ function CAnimal:speak() return "..." end
 CAnimal = class.register(CAnimal)
 -- A subclass, extending Animal.
 local CDog = {
-    __classname="Dog"
+    __classname="Dog",
+    __basename="Animal"
 }
 function CDog:speak() return "Woof" end
-CDog = class.register(CDog, CAnimal)
+CDog = class.register(CDog)
 
 local dogInstance = new(CDog)
 print("Dog says", dogInstance:speak())
@@ -60,10 +61,10 @@ ent2.__class = {}
 -- implement nothing, so super skips them).
 ---------------------------------------------------------------
 local C1 = class.register({ __classname = "c1", hello = function(self) print("hello from c1 (instance of " .. self.__classname .. ")") end })
-local C2 = class.register({ __classname = "c2" }, C1)
-local C3 = class.register({ __classname = "c3", hello = function(self) print("hello from c3") super.hello(self) end }, C2)
-local C4 = class.register({ __classname = "c4" }, C3)
-local C5 = class.register({ __classname = "c5", hello = function(self) print("hello from c5") super.hello(self) end }, C4)
+local C2 = class.register({ __classname = "c2", __basename = "c1" })
+local C3 = class.register({ __classname = "c3", __basename = "c2", hello = function(self) print("hello from c3") super.hello(self) end })
+local C4 = class.register({ __classname = "c4", __basename = "c3" })
+local C5 = class.register({ __classname = "c5", __basename = "c4", hello = function(self) print("hello from c5") super.hello(self) end })
 new(C5):hello()
 
 
@@ -81,20 +82,20 @@ ClassOne:__new()
 print ("--------------------------------2")
 local ClassTwo = class.register(
     {
-        __classname="package.frackage.ClassTwo"
-    },
-    ClassOne
+        __classname="package.frackage.ClassTwo",
+        __basename="package.frackage.ClassOne"
+    }
 )
 ClassTwo:__new()
 print ("--------------------------------3")
 local ClassThree = class.register(
     {
         __classname="package.frackage.ClassThree",
+        __basename="package.frackage.ClassTwo",
         __constr=function(self)
             print("boop")
             super.__constr(self)
         end
-    },
-    ClassTwo
+    }
 )
 ClassThree:__new()

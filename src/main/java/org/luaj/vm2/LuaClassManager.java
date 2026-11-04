@@ -91,19 +91,18 @@ public class LuaClassManager {
 	 * Makes {@code table} a class and registers it.
 	 * <p>
 	 * {@code table} must have a {@link #CLASSNAME_KEY} string, a valid name ({@link #checkName}) not registered yet.
-	 * Its base is {@code baseClassTable}, or else the class its {@link #CLASSNAME_BASE_KEY} string names, which must
-	 * be registered already; with neither, the class has no base. When both are given they must be the same class.
+	 * Its base is the class its {@link #CLASSNAME_BASE_KEY} string names, which must be registered already; without
+	 * one, the class has no base.
 	 * <p>
 	 * The new class gets a copy of its base's fields and methods, then {@code table}'s: its functions become this
 	 * class's methods ({@link ClassMethod}). {@code table} itself is only read.
 	 *
-	 * @param table          the class's name, base name and members
-	 * @param baseClassTable its base class, or {@code null} to take it from {@code table} (or have none)
+	 * @param table the class's name, base name and members
 	 * @return the new class table
 	 * @throws LuaError if the name is missing, not a string, invalid or already registered, or the base named in
-	 *                  {@code table} isn't registered or isn't {@code baseClassTable}
+	 *                  {@code table} isn't a string or isn't registered
 	 */
-	public LuaTable registerClass(LuaTable table, ClassLuaTable baseClassTable) {
+	public LuaTable registerClass(LuaTable table) {
 		// Register class portion
 		LuaValue name = table.get(CLASSNAME_KEY);
 		if (!name.isstring() || name.isnumber()) {
@@ -118,7 +117,8 @@ public class LuaClassManager {
 			throw new LuaError("class '" + className + "' is already registered");
 		}
 
-		// The base as the table names it, if it does: it must be registered, and be the base given (if any)
+		// The base, as the table names it (if it does): it must be registered
+		ClassLuaTable baseClassTable = null;
 		LuaValue baseName = table.get(CLASSNAME_BASE_KEY);
 		if (!baseName.isnil()) {
 			if (!baseName.isstring() || baseName.isnumber()) {
@@ -127,10 +127,6 @@ public class LuaClassManager {
 			ClassLuaTable named = getClassTable(baseName.tojstring());
 			if (named == null) {
 				throw new LuaError("class '" + className + "': base class '" + baseName.tojstring() + "' isn't registered");
-			}
-			if (baseClassTable != null && baseClassTable != named) {
-				throw new LuaError("class '" + className + "': " + CLASSNAME_BASE_KEY + " '" + baseName.tojstring()
-						+ "' isn't the base class given ('" + baseClassTable.getClassName() + "')");
 			}
 			baseClassTable = named;
 		}
