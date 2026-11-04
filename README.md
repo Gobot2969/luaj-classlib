@@ -60,8 +60,8 @@ print(new(Dog):speak())   -- Woof, not ...
 
 What the library is meant to do. Where it doesn't yet, [TODO.md](TODO.md) lists it.
 
-**Installing.** `globals.load(new ClassLib())` sets the globals `class` (also `package.loaded.class`), `new`
-and `super`. `class` holds `class.register` and `class.get`.
+**Installing.** `globals.load(new ClassLib())` sets the globals `class` (also `package.loaded.class`), `new`,
+`super`, `isclass` and `isobj`. `class` holds `class.register` and `class.get`.
 
 **Defining a class.** A class is defined as a plain table: its `__classname` (a string), and its methods and
 fields. `class.register(table [, base])` makes it a class and returns the class table. That's a new table:
@@ -90,9 +90,25 @@ own replace the base's of the same name. The copy is taken when the class is reg
 a base afterwards don't reach classes already registered on it. Register bases first, and define a class's
 methods before registering it.
 
-**Instances.** `new(Class)` (or `new("name")`, the class registered by that name) makes an instance: a table of its own, whose metatable is its class (with
-`__index` the class). Fields set on an instance are the instance's; methods and the class's fields are
-found on the class.
+**Instances.** `new(Class, ...)` (or `new("name", ...)`, the class registered by that name, or
+`Class.__new(...)`) makes an instance: a table of its own, whose metatable is its class (with `__index` the
+class). Fields set on an instance are the instance's; methods and the class's fields are found on the class.
+`isclass(value)` and `isobj(value)` tell whether a value is a class or an instance (false for anything
+else).
+
+**Constructors.** A class's `__constr` is its constructor: a method that runs on each new instance, given
+`new`'s other arguments, before `new` returns the instance (what it returns is ignored).
+
+```lua
+local Gun = class.register({ __classname = "weapon.gun",
+    __constr = function(self, ammo) self.ammo = ammo end })
+local Pistol = class.register({ __classname = "weapon.pistol",
+    __constr = function(self, ammo, silenced) super.__constr(self, ammo) self.silenced = silenced end }, Gun)
+local p = new(Pistol, 12, true)   -- p.ammo == 12, p.silenced == true
+```
+
+Constructors aren't copied into subclasses like other methods: a class without its own `__constr` runs its
+nearest ancestor's, and `super.__constr` likewise reaches the nearest ancestor that has one.
 
 **System fields.** Every class has these, and its instances see them through the class. The library keeps
 them; scripts read them and don't set them.
@@ -104,6 +120,7 @@ them; scripts read them and don't set them.
 | `__basename` | its base's `__classname`, `""` for a class with no base |
 | `__class` | the class table itself |
 | `__base` | the base class table, nil for a class with no base |
+| `__new` | a function making a new instance of the class: `Class.__new(...)` is `new(Class, ...)` |
 
 **super.** Inside a class's method, `super.name` is `name` in the base of the class *the method was
 registered with*, not the instance's class: so every level of a chain of supercalls goes one class up, and
@@ -113,7 +130,8 @@ calls, errors and coroutines (a method can yield in the middle). It's only valid
 outside one (including from a callback called after its method returned), or in a class with no base, it
 raises a Lua error. The methods are the functions the table held when it was registered.
 
-**Errors.** Misuse (a missing, non-string or invalid `__classname`, a base that isn't a class, a
+**Errors.** Misuse (a missing, non-string or invalid `__classname`, a `__constr` that isn't a function, a
+base that isn't a class, a
 `__basename` that isn't registered or isn't the base given, `new` on something that isn't a class or a
 registered name, a name registered twice) raises a Lua error naming the problem.
 

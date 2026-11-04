@@ -6,6 +6,7 @@ import org.luaj.vm2.InstanceLuaTable;
 import org.luaj.vm2.LuaClassManager;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
+import org.luaj.vm2.Varargs;
 
 /**
  * Subclass of {@link LibFunction} which implements the {@code class} library.
@@ -72,35 +73,41 @@ public class ClassLib extends TwoArgFunction {
 		}
 	}
 
-	/** {@code new(class)} or {@code new(name)}: a new instance of the class, or of the class registered by that name. */
-	final class NewFunction extends OneArgFunction {
+	/**
+	 * {@code new(class, ...)} or {@code new(name, ...)}: a new instance of the class, or of the class registered by
+	 * that name; the other arguments go to its constructor.
+	 */
+	final class NewFunction extends VarArgFunction {
 		@Override
-		public LuaValue call(LuaValue table) {// Returns an InstanceLuaTable
+		public Varargs invoke(Varargs args) {// Returns an InstanceLuaTable
+			LuaValue table = args.arg1();
 			if (table.isstring() && !table.isnumber()) {
 				ClassLuaTable named = classManager.getClassTable(table.tojstring());
 				if (named == null) {
 					return argerror(1, "no class registered as '" + table.tojstring() + "'");
 				}
-				return named.createInstance();
+				return named.createInstance(args.subargs(2));
 			}
 			if (!(table instanceof ClassLuaTable)) {
 				return argerror(1, "class or class name expected, got " + table.typename());
 			}
-			return ((ClassLuaTable) table).createInstance();
+			return ((ClassLuaTable) table).createInstance(args.subargs(2));
 		}
 	}
 
+	/** {@code isclass(value)}: whether the value is a class (any value; false for anything else). */
 	final class IsClassFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue arg) {// Returns a LuaBoolean
-			return valueOf(arg.checkuserdata() instanceof ClassLuaTable);
+			return valueOf(arg instanceof ClassLuaTable);
 		}
 	}
 
+	/** {@code isobj(value)}: whether the value is an instance of a class (any value; false for anything else). */
 	final class IsObjFunction extends OneArgFunction {
 		@Override
 		public LuaValue call(LuaValue arg) {// Returns a LuaBoolean
-			return valueOf(arg.checkuserdata() instanceof InstanceLuaTable);
+			return valueOf(arg instanceof InstanceLuaTable);
 		}
 	}
 }

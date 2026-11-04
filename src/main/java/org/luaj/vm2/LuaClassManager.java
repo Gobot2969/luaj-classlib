@@ -22,9 +22,13 @@ public class LuaClassManager {
 	public static final String CLASSTABLE_KEY = "__class";
 	/** The base class table, nil for a class with no base. */
 	public static final String CLASSTABLE_BASE_KEY = "__base";
-	/** The constructor metamethod key. */
+	/**
+	 * The class's constructor: a method {@code new} calls on each new instance, with {@code new}'s other arguments
+	 * ({@code __constr = function(self, ...) end}). Not copied into subclasses: a class without one runs its
+	 * nearest ancestor's ({@link ClassLuaTable#getConstructor}).
+	 */
 	public static final String CONSTRUCTOR_KEY = "__constr";
-	/** The {@code new} function key. */
+	/** {@code Class.__new(...)}: a new instance of the class, its constructor given the arguments (as {@code new(Class, ...)}). */
 	public static final String NEW_FUNC_KEY = "__new";
 
 	/**
@@ -131,22 +135,30 @@ public class LuaClassManager {
 		ClassLuaTable classTable = createClassTable(className, baseClassTable);
 		classes.put(className, classTable); // Save class table to classman
 
-		// Copy baseClassTable keys
+		// A constructor must be a function
+		LuaValue constructor = table.rawget(CONSTRUCTOR_KEY);
+		if (!constructor.isnil() && !constructor.isfunction()) {
+			throw new LuaError("class '" + className + "': " + CONSTRUCTOR_KEY + " must be a function, got " + constructor.typename());
+		}
+
+		// Copy baseClassTable keys, but its constructor: that stays the base's (ClassLuaTable.getConstructor finds it)
 		if (baseClassTable != null) {
 			for (LuaValue key : baseClassTable.keys()) {
 				if (key.isstring()) {
 					String k = key.tojstring();
 					if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
+					if (k.equals(CONSTRUCTOR_KEY) || k.equals(NEW_FUNC_KEY)) continue;
 				}
 				classTable.rawset(key, baseClassTable.rawget(key));
 			}
 		}
 
-		// Copy table keys; its functions become this class's methods (see ClassMethod: super)
+		// Copy table keys; its functions become this class's methods (see ClassMethod: super), its constructor too
 		for (LuaValue key : table.keys()) {
 			if (key.isstring()) {
 				String k = key.tojstring();
 				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
+				if (k.equals(NEW_FUNC_KEY)) continue; // the class answers it itself
 			}
 			classTable.rawset(key, ClassMethod.wrap(table.rawget(key), classTable));
 		}
@@ -157,16 +169,33 @@ public class LuaClassManager {
 	}
 
 	/**
-	 * Makes the table of a new instance of a class.
-	 * Override it to use a subclass of {@link InstanceLuaTable}.
+	 * Makes a new instance of a class: its table ({@link #createInstanceTable}), with the class as its metatable, on
+	 * which the class's constructor ({@link ClassLuaTable#getConstructor}), if it has one, then runs with
+	 * {@code args}.
+	 *
+	 * @param classTable the instance's class
+	 * @param args       the constructor's arguments (after the instance)
+	 * @return the new instance
+	 */
+	public InstanceLuaTable newInstance(ClassLuaTable classTable, Varargs args) {
+		InstanceLuaTable instanceTable = createInstanceTable(classTable);
+		instanceTable.setmetatable(classTable);
+		LuaValue constructor = classTable.getConstructor();
+		if (!constructor.isnil()) {
+			constructor.invoke(LuaValue.varargsOf(instanceTable, args));
+		}
+		return instanceTable;
+	}
+
+	/**
+	 * Creates the table of a new instance of a class, nothing more: {@link #newInstance} gives it its metatable and
+	 * runs the constructor. Override it to use a subclass of {@link InstanceLuaTable}.
 	 *
 	 * @param classTable the instance's class
 	 * @return the new instance table
 	 */
-	public InstanceLuaTable createInstanceTable(ClassLuaTable classTable) {
-		InstanceLuaTable instanceTable = new InstanceLuaTable(classTable);
-		instanceTable.setmetatable(classTable);
-		return instanceTable;
+	protected InstanceLuaTable createInstanceTable(ClassLuaTable classTable) {
+		return new InstanceLuaTable(classTable);
 	}
 
 	/**
