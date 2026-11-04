@@ -83,9 +83,6 @@ public final class ClassMethod extends VarArgFunction {
 				if (base.isnil()) {
 					return error("super: class '" + owner.getClassName() + "' has no base class");
 				}
-				if (LuaClassManager.CONSTRUCTOR_KEY.equals(key.tojstring())) {
-					return ((ClassLuaTable) base).getConstructor(); // not copied into subclasses: the nearest ancestor's
-				}
 				return base.get(key);
 			}
 		});

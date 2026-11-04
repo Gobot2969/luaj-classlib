@@ -25,6 +25,16 @@ public class ClassLuaTable extends LuaTable {
 	/** {@link LuaClassManager#NEW_FUNC_KEY}: one function per class, so {@code C.__new == C.__new}. */
 	private final NewFunction newFunction = new NewFunction();
 
+	/** {@link LuaClassManager#CONSTRUCTOR_KEY} as a Lua string, to recognize writes to it without converting keys. */
+	private static final LuaString CONSTRUCTOR_KEY = LuaString.valueOf(LuaClassManager.CONSTRUCTOR_KEY);
+
+	/**
+	 * The class's constructor: the {@link LuaClassManager#CONSTRUCTOR_KEY} stored in the table (its own, or copied from
+	 * its base), kept in step by {@link #hashset}; or, while the table holds none, the class's own default, which does
+	 * nothing. Read directly by {@link #getConstructor} and for {@code __constr}, so neither looks the table up.
+	 */
+	private LuaValue constructor = new DefaultConstructor();
+
 	/**
 	 * Creates an empty class; {@link LuaClassManager#registerClass} fills and registers it.
 	 *
@@ -61,6 +71,8 @@ public class ClassLuaTable extends LuaTable {
 				// Methods
 				case LuaClassManager.NEW_FUNC_KEY:
 					return newFunction;
+				case LuaClassManager.CONSTRUCTOR_KEY:
+					return constructor;
 
 				// Default
 				default:
@@ -121,19 +133,27 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	/**
-	 * The constructor this class's instances run: its own {@link LuaClassManager#CONSTRUCTOR_KEY}, or else its
-	 * nearest ancestor's (constructors aren't copied into subclasses).
+	 * The constructor this class's instances run: its {@link LuaClassManager#CONSTRUCTOR_KEY}, its own or the one
+	 * copied from its base when it was registered, or else the class's own default, which does nothing (a field read:
+	 * no table lookup, none up the hierarchy).
 	 *
-	 * @return the constructor, or nil if neither the class nor any ancestor has one
+	 * @return the constructor, never nil
 	 */
 	public LuaValue getConstructor() {
-		for (ClassLuaTable c = this; c != null; c = c.baseClassTable) {
-			LuaValue constructor = c.rawget(LuaClassManager.CONSTRUCTOR_KEY);
-			if (!constructor.isnil()) {
-				return constructor;
-			}
+		return constructor;
+	}
+
+	/**
+	 * Stores as any table does, and keeps {@link #getConstructor} in step with what's stored under
+	 * {@link LuaClassManager#CONSTRUCTOR_KEY}: a constructor set there is the class's, and nil gives it a new default
+	 * of its own. Every write of a string key ends here ({@code set}, {@code rawset}, Lua's and LuaJC's).
+	 */
+	@Override
+	public void hashset(LuaValue key, LuaValue value) {
+		super.hashset(key, value);
+		if (CONSTRUCTOR_KEY.raweq(key)) {
+			constructor = value.isnil() ? new DefaultConstructor() : value;
 		}
-		return NIL;
 	}
 
 	/** @return this class */
@@ -144,6 +164,16 @@ public class ClassLuaTable extends LuaTable {
 	/** @return the base class, or {@code null} for a class with no base */
 	public ClassLuaTable getBaseClassTable() {
 		return this.baseClassTable;
+	}
+
+	/** A constructor that does nothing: each class's own default ({@link #getConstructor}). */
+	private static final class DefaultConstructor extends VarArgFunction {
+
+		@Override
+		public Varargs invoke(Varargs args) {
+			return NONE;
+		}
+
 	}
 
 	/** {@code Class.__new(...)}: a new instance of this class, the arguments given to its constructor. */

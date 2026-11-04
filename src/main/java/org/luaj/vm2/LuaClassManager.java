@@ -3,6 +3,7 @@ package org.luaj.vm2;
 import java.util.HashMap;
 import java.util.Map;
 
+
 /**
  * Registers and looks up classes for one {@link org.luaj.vm2.lib.ClassLib}: makes class tables from the tables
  * scripts register, and instance tables of them. Subclass it to make class or instance tables of your own
@@ -24,8 +25,10 @@ public class LuaClassManager {
 	public static final String CLASSTABLE_BASE_KEY = "__base";
 	/**
 	 * The class's constructor: a method {@code new} calls on each new instance, with {@code new}'s other arguments
-	 * ({@code __constr = function(self, ...) end}). Not copied into subclasses: a class without one runs its
-	 * nearest ancestor's ({@link ClassLuaTable#getConstructor}).
+	 * ({@code __constr = function(self, ...) end}). Copied into subclasses like any other method: a class without its
+	 * own has its nearest ancestor's. A class with none at all answers its own default, one that does nothing
+	 * ({@link ClassLuaTable#getConstructor}); so every class has one, and {@code super.__constr} can always be called
+	 * from a class with a base.
 	 */
 	public static final String CONSTRUCTOR_KEY = "__constr";
 	/** {@code Class.__new(...)}: a new instance of the class, its constructor given the arguments (as {@code new(Class, ...)}). */
@@ -141,13 +144,13 @@ public class LuaClassManager {
 			throw new LuaError("class '" + className + "': " + CONSTRUCTOR_KEY + " must be a function, got " + constructor.typename());
 		}
 
-		// Copy baseClassTable keys, but its constructor: that stays the base's (ClassLuaTable.getConstructor finds it)
+		// Copy baseClassTable keys (its methods, constructor included), but __new: the class answers that itself
 		if (baseClassTable != null) {
 			for (LuaValue key : baseClassTable.keys()) {
 				if (key.isstring()) {
 					String k = key.tojstring();
 					if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
-					if (k.equals(CONSTRUCTOR_KEY) || k.equals(NEW_FUNC_KEY)) continue;
+					if (k.equals(NEW_FUNC_KEY)) continue;
 				}
 				classTable.rawset(key, baseClassTable.rawget(key));
 			}
