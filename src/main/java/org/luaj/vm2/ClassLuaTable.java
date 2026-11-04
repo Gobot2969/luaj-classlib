@@ -26,6 +26,12 @@ public class ClassLuaTable extends LuaTable {
 	private final NewFunction newFunction = new NewFunction();
 
 	/**
+	 * This class's own default constructor, which does nothing: what {@link LuaClassManager#CONSTRUCTOR_KEY} answers
+	 * when the class has no constructor of its own or copied from its base. Made once, one per class.
+	 */
+	private final LuaValue defaultConstructor = new DefaultConstructor();
+
+	/**
 	 * Creates an empty class; {@link LuaClassManager#registerClass} fills and registers it.
 	 *
 	 * @param classManager   the manager registering it
@@ -61,6 +67,10 @@ public class ClassLuaTable extends LuaTable {
 				// Methods
 				case LuaClassManager.NEW_FUNC_KEY:
 					return newFunction;
+				case LuaClassManager.CONSTRUCTOR_KEY: {
+					LuaValue constructor = super.hashget(key);
+					return constructor.isnil() ? defaultConstructor : constructor;
+				}
 
 				// Default
 				default:
@@ -122,9 +132,10 @@ public class ClassLuaTable extends LuaTable {
 
 	/**
 	 * The constructor this class's instances run: its {@link LuaClassManager#CONSTRUCTOR_KEY}, its own or the one
-	 * copied from its base when it was registered (one table read, no lookup up the hierarchy).
+	 * copied from its base when it was registered, or else the class's own default, which does nothing (one table
+	 * read, no lookup up the hierarchy).
 	 *
-	 * @return the constructor; for a registered class never nil (see {@link LuaClassManager#DEFAULT_CONSTRUCTOR})
+	 * @return the constructor, never nil
 	 */
 	public LuaValue getConstructor() {
 		return rawget(LuaClassManager.CONSTRUCTOR_KEY);
@@ -138,6 +149,16 @@ public class ClassLuaTable extends LuaTable {
 	/** @return the base class, or {@code null} for a class with no base */
 	public ClassLuaTable getBaseClassTable() {
 		return this.baseClassTable;
+	}
+
+	/** A constructor that does nothing: each class's own default ({@link #getConstructor}). */
+	private static final class DefaultConstructor extends VarArgFunction {
+
+		@Override
+		public Varargs invoke(Varargs args) {
+			return NONE;
+		}
+
 	}
 
 	/** {@code Class.__new(...)}: a new instance of this class, the arguments given to its constructor. */

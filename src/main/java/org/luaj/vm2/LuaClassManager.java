@@ -3,7 +3,6 @@ package org.luaj.vm2;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.luaj.vm2.lib.VarArgFunction;
 
 /**
  * Registers and looks up classes for one {@link org.luaj.vm2.lib.ClassLib}: makes class tables from the tables
@@ -27,25 +26,11 @@ public class LuaClassManager {
 	/**
 	 * The class's constructor: a method {@code new} calls on each new instance, with {@code new}'s other arguments
 	 * ({@code __constr = function(self, ...) end}). Copied into subclasses like any other method: a class without its
-	 * own has its nearest ancestor's, and a root class without one gets {@link #DEFAULT_CONSTRUCTOR}; so every class
-	 * has one, and {@code super.__constr} can always be called from a class with a base.
+	 * own has its nearest ancestor's. A class with none at all answers its own default, one that does nothing
+	 * ({@link ClassLuaTable#getConstructor}); so every class has one, and {@code super.__constr} can always be called
+	 * from a class with a base.
 	 */
 	public static final String CONSTRUCTOR_KEY = "__constr";
-	/**
-	 * The constructor a root class without its own gets (and its subclasses without theirs, by copy): it does
-	 * nothing. One function shared by all of them.
-	 */
-	public static final LuaValue DEFAULT_CONSTRUCTOR = new VarArgFunction() {
-		@Override
-		public Varargs invoke(Varargs args) {
-			return NONE;
-		}
-
-		@Override
-		public String tojstring() {
-			return "default constructor";
-		}
-	};
 	/** {@code Class.__new(...)}: a new instance of the class, its constructor given the arguments (as {@code new(Class, ...)}). */
 	public static final String NEW_FUNC_KEY = "__new";
 
@@ -179,12 +164,6 @@ public class LuaClassManager {
 				if (k.equals(NEW_FUNC_KEY)) continue; // the class answers it itself
 			}
 			classTable.rawset(key, ClassMethod.wrap(table.rawget(key), classTable));
-		}
-
-		// No constructor of its own or from its base: only a root class without one. It gets the default (which its
-		// subclasses copy), so every class has a constructor
-		if (classTable.rawget(CONSTRUCTOR_KEY).isnil()) {
-			classTable.rawset(CONSTRUCTOR_KEY, DEFAULT_CONSTRUCTOR);
 		}
 		
 		classTable.set("__index", classTable); // Instances (whose metatable is this class) find its methods and fields through it
