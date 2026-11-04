@@ -1,6 +1,6 @@
 package org.luaj.vm2;
 
-import org.luaj.vm2.lib.ZeroArgFunction;
+import org.luaj.vm2.lib.VarArgFunction;
 
 /**
  * A class: the table {@code class.register} returns. Holds the class's fields and methods (its base's copied in),
@@ -21,6 +21,9 @@ public class ClassLuaTable extends LuaTable {
 
 	private ClassLuaTable classTable;
 	private ClassLuaTable baseClassTable;
+
+	/** {@link LuaClassManager#NEW_FUNC_KEY}: one function per class, so {@code C.__new == C.__new}. */
+	private final NewFunction newFunction = new NewFunction();
 
 	/**
 	 * Creates an empty class; {@link LuaClassManager#registerClass} fills and registers it.
@@ -57,7 +60,7 @@ public class ClassLuaTable extends LuaTable {
 					return baseClassTable == null ? NIL : baseClassTable; // nil, not Java null, for a root class
 				// Methods
 				case LuaClassManager.NEW_FUNC_KEY:
-					return new NewFunction();
+					return newFunction;
 
 				// Default
 				default:
@@ -99,12 +102,38 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	/**
-	 * Makes a new instance of this class: its manager's instance table, with this class as its metatable.
+	 * Makes a new instance of this class, running its constructor without arguments.
 	 *
 	 * @return the new instance
 	 */
 	public InstanceLuaTable createInstance() {
-		return classManager.createInstanceTable(this);
+		return createInstance(NONE);
+	}
+
+	/**
+	 * Makes a new instance of this class, its constructor given {@code args} ({@link LuaClassManager#newInstance}).
+	 *
+	 * @param args the constructor's arguments (after the instance)
+	 * @return the new instance
+	 */
+	public InstanceLuaTable createInstance(Varargs args) {
+		return classManager.newInstance(this, args);
+	}
+
+	/**
+	 * The constructor this class's instances run: its own {@link LuaClassManager#CONSTRUCTOR_KEY}, or else its
+	 * nearest ancestor's (constructors aren't copied into subclasses).
+	 *
+	 * @return the constructor, or nil if neither the class nor any ancestor has one
+	 */
+	public LuaValue getConstructor() {
+		for (ClassLuaTable c = this; c != null; c = c.baseClassTable) {
+			LuaValue constructor = c.rawget(LuaClassManager.CONSTRUCTOR_KEY);
+			if (!constructor.isnil()) {
+				return constructor;
+			}
+		}
+		return NIL;
 	}
 
 	/** @return this class */
@@ -117,11 +146,12 @@ public class ClassLuaTable extends LuaTable {
 		return this.baseClassTable;
 	}
 
-	private class NewFunction extends ZeroArgFunction {
+	/** {@code Class.__new(...)}: a new instance of this class, the arguments given to its constructor. */
+	private class NewFunction extends VarArgFunction {
 
 		@Override
-		public LuaValue call() {
-			return createInstance();
+		public Varargs invoke(Varargs args) {
+			return createInstance(args);
 		}
 
 	}

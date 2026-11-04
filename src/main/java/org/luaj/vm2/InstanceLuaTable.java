@@ -10,7 +10,7 @@ public class InstanceLuaTable extends LuaTable {
 	ClassLuaTable classTable;
 
 	/**
-	 * Creates an instance of a class; {@link ClassLuaTable#createInstance} gives it its metatable.
+	 * Creates an instance of a class; {@link LuaClassManager#newInstance} gives it its metatable and runs the constructor.
 	 *
 	 * @param classTable its class
 	 */
