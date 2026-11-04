@@ -22,6 +22,10 @@ public class LuaClassManager {
 	public static final String CLASSTABLE_KEY = "__class";
 	/** The base class table, nil for a class with no base. */
 	public static final String CLASSTABLE_BASE_KEY = "__base";
+	/** The constructor metamethod key. */
+	public static final String CONSTRUCTOR_KEY = "__constr";
+	/** The {@code new} function key. */
+	public static final String NEW_FUNC_KEY = "__new";
 
 	/**
 	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by exact name
@@ -153,14 +157,16 @@ public class LuaClassManager {
 	}
 
 	/**
-	 * Makes the table of a new instance of a class; {@link ClassLuaTable#createInstance} gives it its metatable.
+	 * Makes the table of a new instance of a class.
 	 * Override it to use a subclass of {@link InstanceLuaTable}.
 	 *
 	 * @param classTable the instance's class
 	 * @return the new instance table
 	 */
 	public InstanceLuaTable createInstanceTable(ClassLuaTable classTable) {
-		return new InstanceLuaTable(classTable);
+		InstanceLuaTable instanceTable = new InstanceLuaTable(classTable);
+		instanceTable.setmetatable(classTable);
+		return instanceTable;
 	}
 
 	/**

@@ -2,6 +2,7 @@ package org.luaj.vm2.lib;
 
 import org.luaj.vm2.ClassLuaTable;
 import org.luaj.vm2.ClassMethod;
+import org.luaj.vm2.InstanceLuaTable;
 import org.luaj.vm2.LuaClassManager;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
@@ -43,6 +44,8 @@ public class ClassLib extends TwoArgFunction {
 		lib.set("get", new GetFunction());
 		lib.set("register", new RegisterFunction());
 		env.set(PACKAGE_NAME, lib);
+		env.set("isclass", new IsClassFunction());
+		env.set("isobj", new IsObjFunction());
 		env.set("new", new NewFunction());
 		env.set("super", ClassMethod.superTable());
 		if (!env.get("package").isnil()) env.get("package").get("loaded").set(PACKAGE_NAME, lib);
@@ -84,6 +87,20 @@ public class ClassLib extends TwoArgFunction {
 				return argerror(1, "class or class name expected, got " + table.typename());
 			}
 			return ((ClassLuaTable) table).createInstance();
+		}
+	}
+
+	final class IsClassFunction extends OneArgFunction {
+		@Override
+		public LuaValue call(LuaValue arg) {// Returns a LuaBoolean
+			return valueOf(arg.checkuserdata() instanceof ClassLuaTable);
+		}
+	}
+
+	final class IsObjFunction extends OneArgFunction {
+		@Override
+		public LuaValue call(LuaValue arg) {// Returns a LuaBoolean
+			return valueOf(arg.checkuserdata() instanceof InstanceLuaTable);
 		}
 	}
 }

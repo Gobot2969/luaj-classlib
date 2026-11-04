@@ -1,5 +1,7 @@
 package org.luaj.vm2;
 
+import org.luaj.vm2.lib.ZeroArgFunction;
+
 /**
  * A class: the table {@code class.register} returns. Holds the class's fields and methods (its base's copied in),
  * answers the system fields ({@link LuaClassManager#CLASSNAME_KEY} and the others), and is the metatable of its
@@ -42,6 +44,7 @@ public class ClassLuaTable extends LuaTable {
 	protected LuaValue hashget(LuaValue key) {
 		if (key.isstring()) {
 			switch(key.tojstring()) {
+				// Fields
 				case LuaClassManager.CLASSNAME_KEY:
 					return classNameLua;
 				case LuaClassManager.CLASSNAME_SHORT_KEY:
@@ -52,6 +55,11 @@ public class ClassLuaTable extends LuaTable {
 					return classTable;
 				case LuaClassManager.CLASSTABLE_BASE_KEY:
 					return baseClassTable == null ? NIL : baseClassTable; // nil, not Java null, for a root class
+				// Methods
+				case LuaClassManager.NEW_FUNC_KEY:
+					return new NewFunction();
+
+				// Default
 				default:
 					break;
 			}
@@ -96,9 +104,7 @@ public class ClassLuaTable extends LuaTable {
 	 * @return the new instance
 	 */
 	public InstanceLuaTable createInstance() {
-		InstanceLuaTable instanceTable = classManager.createInstanceTable(this);
-		instanceTable.setmetatable(this);
-		return instanceTable;
+		return classManager.createInstanceTable(this);
 	}
 
 	/** @return this class */
@@ -109,6 +115,15 @@ public class ClassLuaTable extends LuaTable {
 	/** @return the base class, or {@code null} for a class with no base */
 	public ClassLuaTable getBaseClassTable() {
 		return this.baseClassTable;
+	}
+
+	private class NewFunction extends ZeroArgFunction {
+
+		@Override
+		public LuaValue call() {
+			return createInstance();
+		}
+
 	}
 
 }
