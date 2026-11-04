@@ -78,7 +78,7 @@ registered under exactly that name, or nil.
 **Hierarchy.** Classes don't have to share a common ancestor: any class, at any point in a hierarchy, may
 have no base (nil), and there can be any number of root classes. The only rules:
 
-1. A class may not inherit from itself, directly or through other classes.
+1. A class may not inherit itself, directly or indirectly.
 2. When a class is registered, its base class (and so all of its ancestors) must already be registered.
 
 Both hold by construction: a base is a class that `class.register` returned before, and a class only exists
