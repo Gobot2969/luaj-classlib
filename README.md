@@ -67,12 +67,13 @@ and `super`. `class` holds `class.register` and `class.get`.
 fields. `class.register(table [, base])` makes it a class and returns the class table. That's a new table:
 the one passed in is only read, so a script can build it however it likes (a local, a global like `ENT`
 filled by another file) and drop it after. `base` is a class returned by `class.register` or `class.get`;
-or the table names its base with `__classname_base` (a registered class's name). When both are given they
+or the table names its base with `__basename` (a registered class's name). When both are given they
 must be the same class.
 
 **Names.** A class's name is its `__classname`, exactly as written: names are case-sensitive (`"Dog"` and
 `"dog"` are two classes). `.` is a delimiter (`"weapon.pistol"`), so a name can't be empty, start or end
-with a dot, or have two dots in a row. Each name is registered once. `class.get(name)` returns the class
+with a dot, or have two dots in a row; the part after the last dot is the class's short name (`__shortname`:
+`"pistol"`). Each name is registered once. `class.get(name)` returns the class
 registered under exactly that name, or nil.
 
 **Hierarchy.** Classes don't have to share a common ancestor: any class, at any point in a hierarchy, may
@@ -98,10 +99,11 @@ them; scripts read them and don't set them.
 
 | Field | Is |
 |---|---|
-| `__classname` | the class's name, as registered |
-| `__classname_base` | its base's name, `""` for a class with no base |
+| `__classname` | the class's name, as registered (`"weapon.pistol"`) |
+| `__shortname` | the last part of its name, after the last dot (`"pistol"`); the whole name if it has none |
+| `__basename` | its base's `__classname`, `""` for a class with no base |
 | `__class` | the class table itself |
-| `__class_base` | the base class table, nil for a class with no base |
+| `__base` | the base class table, nil for a class with no base |
 
 **super.** Inside a class's method, `super.name` is `name` in the base of the class *the method was
 registered with*, not the instance's class: so every level of a chain of supercalls goes one class up, and
@@ -112,7 +114,7 @@ outside one (including from a callback called after its method returned), or in 
 raises a Lua error. The methods are the functions the table held when it was registered.
 
 **Errors.** Misuse (a missing, non-string or invalid `__classname`, a base that isn't a class, a
-`__classname_base` that isn't registered or isn't the base given, `new` on something that isn't a class or a
+`__basename` that isn't registered or isn't the base given, `new` on something that isn't a class or a
 registered name, a name registered twice) raises a Lua error naming the problem.
 
 ## Building
