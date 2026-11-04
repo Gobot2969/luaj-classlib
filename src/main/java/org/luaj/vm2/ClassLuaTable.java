@@ -121,19 +121,13 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	/**
-	 * The constructor this class's instances run: its own {@link LuaClassManager#CONSTRUCTOR_KEY}, or else its
-	 * nearest ancestor's (constructors aren't copied into subclasses).
+	 * The constructor this class's instances run: its {@link LuaClassManager#CONSTRUCTOR_KEY}, its own or the one
+	 * copied from its base when it was registered (one table read, no lookup up the hierarchy).
 	 *
-	 * @return the constructor, or nil if neither the class nor any ancestor has one
+	 * @return the constructor, or nil if the class has none
 	 */
 	public LuaValue getConstructor() {
-		for (ClassLuaTable c = this; c != null; c = c.baseClassTable) {
-			LuaValue constructor = c.rawget(LuaClassManager.CONSTRUCTOR_KEY);
-			if (!constructor.isnil()) {
-				return constructor;
-			}
-		}
-		return NIL;
+		return rawget(LuaClassManager.CONSTRUCTOR_KEY);
 	}
 
 	/** @return this class */
