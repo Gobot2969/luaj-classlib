@@ -65,3 +65,36 @@ local C3 = class.register({ __classname = "c3", hello = function(self) print("he
 local C4 = class.register({ __classname = "c4" }, C3)
 local C5 = class.register({ __classname = "c5", hello = function(self) print("hello from c5") super.hello(self) end }, C4)
 new(C5):hello()
+
+
+
+print ("--------------------------------1")
+local ClassOne = class.register(
+    {
+        __classname="package.frackage.ClassOne",
+        __constr=function(self)
+            print(self.__shortname)
+        end
+    }
+)
+ClassOne:__new()
+print ("--------------------------------2")
+local ClassTwo = class.register(
+    {
+        __classname="package.frackage.ClassTwo"
+    },
+    ClassOne
+)
+ClassTwo:__new()
+print ("--------------------------------3")
+local ClassThree = class.register(
+    {
+        __classname="package.frackage.ClassThree",
+        __constr=function(self)
+            print("boop")
+            super.__constr(self)
+        end
+    },
+    ClassTwo
+)
+ClassThree:__new()
