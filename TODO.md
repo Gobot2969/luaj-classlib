@@ -19,6 +19,13 @@ Not decided: behaviour that may need changing.
 - **`getmetatable(instance)` is the class table itself**, so any script holding an instance can change its
   class. A `__metatable` field on class tables would hide it, if classes should be protected.
 
+- **`super` inside a plain function set on an instance** (`obj.f = function(self) ... super.f(self) end`).
+  Such a function isn't a method of any class, so `super` raises "not inside a class method" when it's
+  called directly, but when one of the class's own methods calls it, `super` resolves against that method's
+  class instead, which can reach the wrong class silently. The README advises keeping the class's version
+  (`obj.old_f = obj.f`) and calling that. Undecided: make `super` a consistent error there (instances wrap
+  the plain functions they store as "instance functions", and `super` refuses them), or leave it documented.
+
 ## Later
 
 - **A default `__tostring` for instances** (`dog: 0x...` instead of `table: 0x...`; LuaJ doesn't name

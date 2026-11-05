@@ -89,7 +89,7 @@ Once a class is registered you can also find it again by name, from anywhere: `c
 ### 2. Making instances
 
 To make an instance, call the class like a function. Anything you pass goes to its constructor (see
-[Constructors](#6-constructors)):
+[Constructors](#7-constructors)):
 
 ```lua
 local a = Animal()
@@ -113,7 +113,26 @@ a.nickname = "Rex"
 print(isobj(a), isclass(Animal), isobj(Animal), isclass(42))   -- true true false false
 ```
 
-### 3. Names and namespaces
+### 3. Instance data and masking
+
+Each instance keeps its own data. Setting a field on an instance stores it on that instance only, and if the
+class has a member of the same name, the instance's value masks it, for that instance alone. Setting the
+field back to `nil` lets the class's value show through again:
+
+```lua
+local Lamp = class.register({ __classname = "lamp", color = "white" })
+local a, b = Lamp(), Lamp()
+
+a.color = "red"
+print(a.color, b.color, Lamp.color)   -- red   white   white
+a.color = nil
+print(a.color)                        -- white: the class's again
+```
+
+The fields the library keeps (`__classname`, `__shortname`, `__basename`, `__class` and `__base`) can't be
+masked: setting one on an instance raises an error, just like setting it on a class.
+
+### 4. Names and namespaces
 
 Class names are case-sensitive (`"Dog"` and `"dog"` would be two different classes), and dots split a name
 into parts, the way a package path does: `"game.weapon.pistol"`. The last part is the class's short name,
@@ -142,7 +161,7 @@ expose(Pistol)
 local p = new(game.weapon.pistol)
 ```
 
-### 4. Inheritance
+### 5. Inheritance
 
 A class can extend another one. Give `class.register` the base as a second argument, either the class
 itself or its name, or name it inside the table under `__basename` (if you do both, the argument wins). The
@@ -167,7 +186,7 @@ version. There's no need for one common ancestor: any class can stand on its own
 separate hierarchies as you want. The only rules are that a class can't end up inheriting itself, and that
 its base must already be registered (so it can't happen by accident).
 
-### 5. Base calls (super)
+### 6. Base calls (super)
 
 Inside a method, `super` reaches the version of a method in the class you extended. Call it with a dot and
 pass `self` along:
@@ -187,7 +206,7 @@ lets every class in a long chain call up safely: each call goes exactly one leve
 have their own version are simply skipped. It works the same in interpreted and LuaJC-compiled scripts,
 through coroutines that yield halfway through a method, and through errors.
 
-### 6. Constructors
+### 7. Constructors
 
 A class can have a constructor. Its name is just `__`, so that it reads like the class itself: it runs on
 every new instance and receives whatever the class was called with:
@@ -215,7 +234,7 @@ always safe to call. If you write the constructor inside the table instead, reme
 first parameter (`__ = function(self, ammo) ... end`): there's no colon syntax there to add it for you.
 Usage of constructors is completely optional.
 
-### 7. Mutability
+### 8. Mutability
 
 Classes aren't frozen once they're registered. You can add, replace or remove methods at any time, and the
 change reaches every subclass that doesn't have its own version:
@@ -242,7 +261,28 @@ rewrite their methods in a hot loop.
 The fields the library keeps for you (`__classname`, `__shortname`, `__basename`, `__class` and `__base`)
 are read-only: setting one raises an error.
 
-### 8. Operators and other metamethods
+### 9. Overriding methods on one instance
+
+Because an instance can mask anything its class has, it can also replace a method for itself alone. It's the
+least advisable kind of change: the class no longer decides what that instance does, and a plain function
+put in place of an inherited method loses the use of `super` (called directly it raises an error; called from
+one of the class's own methods it can reach the wrong class). If you do it, keep the class's version and call
+that instead of `super`:
+
+```lua
+local ent = Puppy()
+ent.old_speak = ent.speak                     -- the class's method, kept
+ent.speak = function(self)
+    return "*wags* " .. self:old_speak()      -- not super.speak(self)
+end
+print(ent:speak())                            -- *wags* Yip! (a puppy, but also ...)
+```
+
+The kept method still runs as the class's own, so the `super` calls inside it work as usual. Metamethods
+are the exception to all this: they always come from the class, so setting one on a single instance has no
+effect.
+
+### 10. Operators and other metamethods
 
 A class is its instances' metatable, so any metamethod you give a class works on its instances: printing them,
 adding them together, comparing them, calling them. Like other members, metamethods are inherited and can be
@@ -261,7 +301,7 @@ print(Vec(1, 2) == Vec(1, 2))                  -- true
 
 (Calling the class itself always makes an instance; a `__call` you define makes the *instances* callable.)
 
-### 9. Looking around
+### 11. Looking around
 
 A few calls let you ask about the classes you have. `class.list` gives the names of the registered classes,
 sorted, and can stay inside one namespace; `class.subclasses` gives the classes that extend one (with `true`,
@@ -283,7 +323,7 @@ print(instanceof(p, Dog), instanceof(p, "animal"), instanceof(p, Dog, true))   -
 print(class.extends(Puppy, Animal), class.extends(Animal, Puppy))              -- true false
 ```
 
-### 10. When something goes wrong
+### 12. When something goes wrong
 
 Mistakes are reported as ordinary Lua errors that say what's wrong, so you can catch them with `pcall` like
 any other:
@@ -392,9 +432,11 @@ fast as plain table reads; a write costs one update per subclass it reaches.
 
 **Instances.** Calling a class, `Class(...)`, makes an instance, and so do `new(Class, ...)` and
 `new("name", ...)` (the class registered by that name): a table of its own, whose metatable is its class (with
-`__index` the class). The arguments go to the constructor. Fields set on an instance are the instance's;
-methods and the class's fields are found on the class. `isclass(value)` and `isobj(value)` tell whether a
-value is a class or an instance (false for anything else).
+`__index` the class). The arguments go to the constructor. Fields set on an instance are the instance's,
+and mask the class's member of that name for that instance only (nil unmasks it); methods and the class's
+fields are found on the class. The system fields can't be set on an instance. Metamethods always come from
+the class. `isclass(value)` and `isobj(value)` tell whether a value is a class or an instance (false for
+anything else).
 
 **Constructors.** A class's `__` is its constructor: a method that runs on each new instance, given the
 arguments the instance was made with, before the instance is returned (what it returns is ignored).
@@ -442,9 +484,10 @@ class counts. Classes can be given by name.
 
 **Errors.** Misuse (a missing, non-string or invalid `__classname`, a `__` that isn't a function, a
 `__basename` or base argument that isn't a string or a class or isn't registered, a third argument to
-`class.register`, setting a system field, `new` on something that isn't a class or a registered name, a name
-registered twice, the wrong kind of argument to the queries) raises a Lua error naming the problem. The
-queries word theirs as Lua does: `bad argument #1 to 'instanceof' (instance expected, got class)`.
+`class.register`, setting a system field on a class or an instance, `new` on something that isn't a class or a
+registered name, a name registered twice, the wrong kind of argument to the queries) raises a Lua error naming
+the problem. The queries word theirs as Lua does: `bad argument #1 to 'instanceof' (instance expected, got
+class)`.
 
 ## Building
 
