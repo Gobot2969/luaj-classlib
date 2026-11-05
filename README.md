@@ -21,7 +21,7 @@ globals.load(new ClassLib());   // org.luaj.vm2.lib.ClassLib
 That gives every script a few new globals: `class` (with `class.register` and `class.get`), `new`, `super`,
 `isclass` and `isobj`. The sections below walk through what they're for, one idea at a time.
 
-### i) Registering classes
+### 1. Registering classes
 
 A class starts out as an ordinary Lua table. It needs a name, under `__classname`, and whatever methods and
 fields you want it to have. Handing it to `class.register` turns it into a class:
@@ -74,7 +74,7 @@ local Gun = require("weapon.gun")
 
 Once a class is registered you can also find it again by name, from anywhere: `class.get("weapon.gun")`.
 
-### ii) Making instances
+### 2. Making instances
 
 `new` makes an instance of a class. Anything you pass after the class goes to its constructor (see
 [Constructors](#vi-constructors)). You can name the class instead of passing it, or ask the class itself:
@@ -95,7 +95,7 @@ a.nickname = "Rex"
 print(isobj(a), isclass(Animal), isobj(Animal), isclass(42))   -- true true false false
 ```
 
-### iii) Names and namespaces
+### 3. Names and namespaces
 
 Class names are case-sensitive (`"Dog"` and `"dog"` would be two different classes), and dots split a name
 into parts, the way a package path does: `"game.weapon.pistol"`. The last part is the class's short name,
@@ -124,7 +124,7 @@ expose(Pistol)
 local p = new(game.weapon.pistol)
 ```
 
-### iv) Inheritance
+### 4. Inheritance
 
 A class can extend another one by naming it in `__basename`. The base has to be registered first, which
 `require` takes care of naturally if each class file requires its base at the top:
@@ -145,7 +145,7 @@ version. There's no need for one common ancestor: any class can stand on its own
 separate hierarchies as you want. The only rules are that a class can't end up inheriting itself, and that
 its base must already be registered (so it can't happen by accident).
 
-### v) Base calls (super)
+### 5. Base calls (super)
 
 Inside a method, `super` reaches the version of a method in the class you extended. Call it with a dot and
 pass `self` along:
@@ -165,7 +165,7 @@ lets every class in a long chain call up safely: each call goes exactly one leve
 have their own version are simply skipped. It works the same in interpreted and LuaJC-compiled scripts,
 through coroutines that yield halfway through a method, and through errors.
 
-### vi) Constructors
+### 6. Constructors
 
 A class can have a constructor, `__constr`. It runs on every new instance and receives whatever was passed
 to `new` after the class:
@@ -193,9 +193,9 @@ local r = new(Rifle, 30, "4x")    -- r.ammo == 30, r.scope == "4x"
 Constructors are inherited like any other method, so a class without its own simply uses its base's. A class
 with no constructor anywhere above it still has one that quietly does nothing, which means `super.__constr`
 is always safe to call. Remember to declare `self` as the first parameter: inside a table like this, there's
-no colon syntax to add it for you.
+no colon syntax to add it for you. Usage of constructors is completely optional.
 
-### vii) Mutability
+### 7. Mutability
 
 Classes aren't frozen once they're registered. You can add, replace or remove methods at any time, and the
 change reaches every subclass that doesn't have its own version:
@@ -222,7 +222,7 @@ rewrite their methods in a hot loop.
 The fields the library keeps for you (`__classname`, `__shortname`, `__basename`, `__class`, `__base` and
 `__new`) are read-only: setting one raises an error.
 
-### viii) When something goes wrong
+### 8. When something goes wrong
 
 Mistakes are reported as ordinary Lua errors that say what's wrong, so you can catch them with `pcall` like
 any other:
