@@ -4,6 +4,7 @@ import org.luaj.vm2.ClassLuaTable;
 import org.luaj.vm2.ClassMethod;
 import org.luaj.vm2.InstanceLuaTable;
 import org.luaj.vm2.LuaClassManager;
+import org.luaj.vm2.LuaError;
 import org.luaj.vm2.LuaTable;
 import org.luaj.vm2.LuaValue;
 import org.luaj.vm2.Varargs;
@@ -44,9 +45,13 @@ public class ClassLib extends TwoArgFunction {
 		LuaTable lib = new LuaTable();
 		lib.set("get", new GetFunction());
 		lib.set("register", new RegisterFunction());
+		lib.set("list", new ListFunction());
+		lib.set("subclasses", new SubclassesFunction());
+		lib.set("extends", new ExtendsFunction());
 		env.set(PACKAGE_NAME, lib);
 		env.set("isclass", new IsClassFunction());
 		env.set("isobj", new IsObjFunction());
+		env.set("instanceof", new InstanceofFunction());
 		env.set("new", new NewFunction());
 		env.set("super", ClassMethod.superTable());
 		if (!env.get("package").isnil()) env.get("package").get("loaded").set(PACKAGE_NAME, lib);
@@ -119,6 +124,93 @@ public class ClassLib extends TwoArgFunction {
 		@Override
 		public LuaValue call(LuaValue arg) {// Returns a LuaBoolean
 			return valueOf(arg instanceof InstanceLuaTable);
+		}
+	}
+
+	/**
+	 * An argument error in Lua's own wording: {@code bad argument #2 to 'instanceof' (class expected, got table)}. A
+	 * class or an instance given where it doesn't belong is called that, not just "table"; an argument left out is
+	 * "no value", as Lua says.
+	 */
+	static LuaError badArgument(Varargs args, int index, String function, String expected) {
+		LuaValue got = args.arg(index);
+		String kind = index > args.narg() ? "no value" : got instanceof ClassLuaTable ? "class"
+				: got instanceof InstanceLuaTable ? "instance" : got.typename();
+		return new LuaError("bad argument #" + index + " to '" + function + "' (" + expected + " expected, got " + kind + ")");
+	}
+
+	/** A class argument: a class, or the name of a registered one. */
+	ClassLuaTable classArgument(Varargs args, int index, String function) {
+		LuaValue value = args.arg(index);
+		if (value instanceof ClassLuaTable) {
+			return (ClassLuaTable) value;
+		}
+		if (value.isstring() && !value.isnumber()) {
+			ClassLuaTable named = classManager.getClassTable(value.tojstring());
+			if (named == null) {
+				throw new LuaError("bad argument #" + index + " to '" + function + "' (no class registered as '"
+						+ value.tojstring() + "')");
+			}
+			return named;
+		}
+		throw badArgument(args, index, function, "class or class name");
+	}
+
+	/** {@code class.list([prefix])}: the registered class names (under a dotted prefix), sorted, as an array. */
+	final class ListFunction extends VarArgFunction {
+		@Override
+		public Varargs invoke(Varargs args) {
+			LuaValue prefix = args.arg1();
+			if (!prefix.isnil() && (!prefix.isstring() || prefix.isnumber())) {
+				throw badArgument(args, 1, "list", "string");
+			}
+			LuaTable out = new LuaTable();
+			for (String name : classManager.getClassNames(prefix.isnil() ? null : prefix.tojstring())) {
+				out.insert(0, valueOf(name));
+			}
+			return out;
+		}
+	}
+
+	/** {@code class.subclasses(class [, all])}: a class's subclasses as an array; every class below it with {@code all}. */
+	final class SubclassesFunction extends VarArgFunction {
+		@Override
+		public Varargs invoke(Varargs args) {
+			ClassLuaTable classTable = classArgument(args, 1, "subclasses");
+			LuaTable out = new LuaTable();
+			for (ClassLuaTable subclass : classManager.getSubclasses(classTable, args.arg(2).toboolean())) {
+				out.insert(0, subclass);
+			}
+			return out;
+		}
+	}
+
+	/**
+	 * {@code class.extends(a, b [, exact])}: whether class {@code a} is {@code b} or extends it (only whether it's
+	 * {@code b} with {@code exact}). Both are classes or class names.
+	 */
+	final class ExtendsFunction extends VarArgFunction {
+		@Override
+		public Varargs invoke(Varargs args) {
+			ClassLuaTable a = classArgument(args, 1, "extends");
+			ClassLuaTable b = classArgument(args, 2, "extends");
+			return valueOf(classManager.isSubclass(a, b, args.arg(3).toboolean()));
+		}
+	}
+
+	/**
+	 * {@code instanceof(instance, class [, exact])}: whether the instance is of the class or one of its subclasses
+	 * (only of that very class with {@code exact}). The class may be given by name.
+	 */
+	final class InstanceofFunction extends VarArgFunction {
+		@Override
+		public Varargs invoke(Varargs args) {
+			LuaValue instance = args.arg1();
+			if (!(instance instanceof InstanceLuaTable)) {
+				throw badArgument(args, 1, "instanceof", "instance");
+			}
+			ClassLuaTable classTable = classArgument(args, 2, "instanceof");
+			return valueOf(classManager.isInstance((InstanceLuaTable) instance, classTable, args.arg(3).toboolean()));
 		}
 	}
 }

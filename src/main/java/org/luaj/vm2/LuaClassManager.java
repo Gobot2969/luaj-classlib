@@ -1,8 +1,11 @@
 package org.luaj.vm2;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -330,6 +333,84 @@ public class LuaClassManager {
 	 */
 	public ClassLuaTable getClassTable(String className) {
 		return this.classes.get(className);
+	}
+
+	/**
+	 * The names of all registered classes, sorted.
+	 *
+	 * @return the names (a new list)
+	 */
+	public List<String> getClassNames() {
+		return getClassNames(null);
+	}
+
+	/**
+	 * The names of the registered classes under a dotted prefix, sorted: {@code "game.weapon"} gives
+	 * {@code "game.weapon"} itself (if registered) and {@code "game.weapon.gun"}, but not {@code "game.weaponry"}.
+	 *
+	 * @param prefix the prefix, or {@code null} (or empty) for all classes
+	 * @return the names (a new list)
+	 */
+	public List<String> getClassNames(String prefix) {
+		List<String> names = new ArrayList<String>();
+		for (String name : classes.keySet()) {
+			if (prefix == null || prefix.isEmpty() || name.equals(prefix) || name.startsWith(prefix + ".")) {
+				names.add(name);
+			}
+		}
+		Collections.sort(names);
+		return names;
+	}
+
+	/**
+	 * A class's subclasses: those registered with it as their base, or with {@code all}, every class below it
+	 * (depth first, each subclass followed by its own).
+	 *
+	 * @param classTable the class
+	 * @param all        whether to include subclasses' subclasses, all the way down
+	 * @return the subclasses, in the order they were registered (a new list)
+	 */
+	public List<ClassLuaTable> getSubclasses(ClassLuaTable classTable, boolean all) {
+		List<ClassLuaTable> out = new ArrayList<ClassLuaTable>();
+		for (ClassLuaTable subclass : classTable.subclasses()) {
+			out.add(subclass);
+			if (all) {
+				out.addAll(getSubclasses(subclass, true));
+			}
+		}
+		return out;
+	}
+
+	/**
+	 * Whether a class is another, or extends it (directly or further up).
+	 *
+	 * @param classTable the class asked about
+	 * @param baseClass  the class it may be or extend
+	 * @param exact      only whether it's that very class
+	 * @return whether {@code classTable} is {@code baseClass} or ({@code exact} false) one of its subclasses
+	 */
+	public boolean isSubclass(ClassLuaTable classTable, ClassLuaTable baseClass, boolean exact) {
+		if (exact) {
+			return classTable == baseClass;
+		}
+		for (ClassLuaTable c = classTable; c != null; c = c.getBaseClassTable()) {
+			if (c == baseClass) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Whether an instance is of a class, or of one of its subclasses.
+	 *
+	 * @param instance  the instance
+	 * @param classTable the class
+	 * @param exact     only whether its class is that very class
+	 * @return whether {@code instance}'s class is {@code classTable} or ({@code exact} false) one of its subclasses
+	 */
+	public boolean isInstance(InstanceLuaTable instance, ClassLuaTable classTable, boolean exact) {
+		return isSubclass(instance.getClassTable(), classTable, exact);
 	}
 
 }
