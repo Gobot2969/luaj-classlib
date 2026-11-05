@@ -6,11 +6,7 @@ Open work on luaj-classlib, beside the intended behaviour in the [README](README
 
 Where the library doesn't do what the README says yet.
 
-- **Writes to the system fields are ignored silently** (`C.__classname = "x"` is stored, but `__classname` still
-  reads the real name); they should raise an error.
-- **Methods added to a class after it's registered have no `super`** (`function C:f() super.f(self) end`
-  after `class.register` raises "not inside a class method"). Wrapping functions as they're set on a class
-  table (`ClassLuaTable.rawset`) would fix it.
+None known.
 
 ## Potential gaps
 

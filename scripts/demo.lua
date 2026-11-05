@@ -41,8 +41,8 @@ print("3. loaded:", Pistol.__classname, "extends", Pistol.__basename, "extends",
 assert(Pistol.__base == Gun and Gun.__base == class.get("game.entity"))
 
 ---------------------------------------------------------------------------------------------------
--- 4. Inheritance and super. A class gets its base's members (copied when it registers) and can
---    override them; super.name(self, ...) calls the base's, one class up at every level.
+-- 4. Inheritance and super. A class gets its base's members (kept as copies) and can override
+--    them; super.name(self, ...) calls the base's, one class up at every level.
 ---------------------------------------------------------------------------------------------------
 local pistol = new(Pistol, "sidearm", 1)                -- the gun's constructor, copied into Pistol
 print("4. " .. pistol:describe() .. ":", pistol:fire(), pistol:fire())
@@ -53,6 +53,13 @@ local A = class.register({ __classname = "chain.a", hi = function(self) return "
 local B = class.register({ __classname = "chain.b", __basename = "chain.a" })   -- no hi of its own
 local C = class.register({ __classname = "chain.c", __basename = "chain.b",
     hi = function(self) return "c>" .. super.hi(self) end })
+assert(new(C):hi() == "c>a")
+
+-- Classes stay mutable: a method set on B later reaches its subclasses and enters the chain.
+B.hi = function(self) return "b>" .. super.hi(self) end
+print("4. after B.hi is set:", new(C):hi())
+assert(new(C):hi() == "c>b>a")
+B.hi = nil                                              -- given up: inherited from A again
 assert(new(C):hi() == "c>a")
 
 ---------------------------------------------------------------------------------------------------

@@ -50,8 +50,8 @@ local ent2 = require("class_b_neatfile")
 ent2:info()
 
 
--- Attempt to write readonly info
-ent2.__class = {}
+-- Attempt to write readonly info: system fields can't be set
+print("readonly:", pcall(function() ent2.__class = {} end))
 
 
 ---------------------------------------------------------------
