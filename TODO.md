@@ -47,5 +47,5 @@ Not decided: behaviour that may need changing.
   the way the default constructor is). An instance's own field of that name would shadow it, as with any
   method.
 
-  A shorter name is worth considering, since it's called as a method: **`__is`** reads naturally
-  (`if obj:__is(Dog) then`), with `__isa` or `__of` as alternatives.
+  Name: something shorter than `__instanceof`, since it's called as a method: **`__is`** or **`__isa`**
+  (`if obj:__is(Dog) then`). The global `instanceof` stays as it is.
