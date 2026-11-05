@@ -99,22 +99,51 @@ public class LuaClassManager {
 	}
 
 	/**
-	 * Makes {@code table} a class and registers it.
-	 * <p>
-	 * {@code table} must have a {@link #CLASSNAME_KEY} string, a valid name ({@link #checkName}) not registered yet.
-	 * Its base is the class its {@link #CLASSNAME_BASE_KEY} string names, which must be registered already; without
-	 * one, the class has no base.
-	 * <p>
-	 * The new class holds {@code table}'s members as its own (its functions become this class's methods,
-	 * {@link ClassMethod}) and copies of its base's other members ({@link #updateInheritance}); later writes to it keep
-	 * that up to date down its subclasses ({@link #setMember}). {@code table} itself is only read.
+	 * Makes {@code table} a class and registers it, its base the one its {@link #CLASSNAME_BASE_KEY} names (if any):
+	 * {@link #registerClass(LuaValue, LuaValue)} with no base given.
 	 *
 	 * @param table the class's name, base name and members
 	 * @return the new class table
-	 * @throws LuaError if the name is missing, not a string, invalid or already registered, or the base named in
-	 *                  {@code table} isn't a string or isn't registered
+	 * @throws LuaError as {@link #registerClass(LuaValue, LuaValue)}
 	 */
 	public LuaTable registerClass(LuaTable table) {
+		return registerClass(table, LuaValue.NIL);
+	}
+
+	/**
+	 * Makes a class and registers it ({@code class.register(classDef [, base])}).
+	 * <p>
+	 * {@code classDef} is either a table with a {@link #CLASSNAME_KEY} string and the class's members, or just a class
+	 * name: an empty class (no members; its constructor the default, which does nothing). The name must be valid
+	 * ({@link #checkName}) and not registered yet.
+	 * <p>
+	 * {@code base} is the base class: a registered class's name, or a class registered here; nil for none given. When
+	 * given, it's the base whatever the table's {@link #CLASSNAME_BASE_KEY} says; when not, the base is the class that
+	 * names (it must be registered), or none.
+	 * <p>
+	 * The new class holds the table's members as its own (its functions become this class's methods,
+	 * {@link ClassMethod}) and copies of its base's other members ({@link #updateInheritance}); later writes to it keep
+	 * that up to date down its subclasses ({@link #setMember}). The table itself is only read.
+	 *
+	 * @param classDef the class's table (name, base name and members), or its name
+	 * @param base     the base class or its name, or nil
+	 * @return the new class table
+	 * @throws LuaError if {@code classDef} isn't a table or a name; the name is missing, not a string, invalid or
+	 *                  already registered; {@code base} isn't nil, a name or a class registered here; the base named
+	 *                  isn't registered or isn't a string; or the constructor isn't a function
+	 */
+	public LuaTable registerClass(LuaValue classDef, LuaValue base) {
+		// The class's table: the one given, or for a name alone, an empty one with that name
+		LuaTable table;
+		if (classDef.istable()) {
+			table = (LuaTable) classDef;
+		} else if (classDef.isstring() && !classDef.isnumber()) {
+			table = new LuaTable();
+			table.rawset(CLASSNAME_KEY, classDef);
+		} else {
+			throw new LuaError("class must be a table or a class name, got " + classDef.typename());
+		}
+
 		// Register class portion
 		LuaValue name = table.get(CLASSNAME_KEY);
 		if (!name.isstring() || name.isnumber()) {
@@ -129,10 +158,18 @@ public class LuaClassManager {
 			throw new LuaError("class '" + className + "' is already registered");
 		}
 
-		// The base, as the table names it (if it does): it must be registered
+		// The base: the one given (a name or a class registered here), or else the one the table names (if it does)
 		ClassLuaTable baseClassTable = null;
-		LuaValue baseName = table.get(CLASSNAME_BASE_KEY);
-		if (!baseName.isnil()) {
+		LuaValue baseName = base.isnil() ? table.get(CLASSNAME_BASE_KEY) : base;
+		if (base instanceof ClassLuaTable) {
+			baseClassTable = (ClassLuaTable) base;
+			if (classes.get(baseClassTable.getClassName()) != baseClassTable) {
+				throw new LuaError("class '" + className + "': base class '" + baseClassTable.getClassName()
+						+ "' isn't registered with this class library");
+			}
+		} else if (!base.isnil() && (!base.isstring() || base.isnumber())) {
+			throw new LuaError("class '" + className + "': base class must be a class or a class name, got " + base.typename());
+		} else if (!baseName.isnil()) {
 			if (!baseName.isstring() || baseName.isnumber()) {
 				throw new LuaError("class " + CLASSNAME_BASE_KEY + " must be a string, got " + baseName.typename());
 			}

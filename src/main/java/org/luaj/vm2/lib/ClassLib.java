@@ -63,17 +63,24 @@ public class ClassLib extends TwoArgFunction {
 	}
 
 	/**
-	 * {@code class.register(table)}: Lua's side of {@link LuaClassManager#registerClass(LuaTable)}. It takes the table
-	 * alone (the base is named in it, {@code __basename}): a second argument is an error, not silently ignored.
+	 * {@code class.register(class [, base])}: Lua's side of {@link LuaClassManager#registerClass(LuaValue, LuaValue)}.
+	 * {@code class} is the class's table or just its name (an empty class); {@code base} a class, a class name or nil.
 	 */
 	final class RegisterFunction extends VarArgFunction {
 		@Override
 		public Varargs invoke(Varargs args) {
-			if (args.narg() > 1) {
-				return argerror(2, "class.register takes only the class table; name its base with "
-						+ LuaClassManager.CLASSNAME_BASE_KEY);
+			LuaValue classDef = args.arg1();
+			if (!classDef.istable() && (!classDef.isstring() || classDef.isnumber())) {
+				return argerror(1, "table or class name expected, got " + classDef.typename());
 			}
-			return classManager.registerClass(args.checktable(1));
+			LuaValue base = args.arg(2);
+			if (!base.isnil() && !(base instanceof ClassLuaTable) && (!base.isstring() || base.isnumber())) {
+				return argerror(2, "class or class name expected, got " + base.typename());
+			}
+			if (args.narg() > 2) {
+				return argerror(3, "class.register takes a class and, optionally, its base");
+			}
+			return classManager.registerClass(classDef, base);
 		}
 	}
 
