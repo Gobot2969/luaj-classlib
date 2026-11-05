@@ -3,7 +3,7 @@ plugins {
     `maven-publish`
 }
 
-description = "Java class libraries for LuaJ scripts"
+description = "Classes for Lua scripts running on LuaJ"
 
 dependencies {
     // In the public API (libraries take and return LuaValue), so consumers get LuaJ too.

@@ -1,11 +1,258 @@
 # luaj-classlib
 
-Java class libraries for [LuaJ](https://github.com/dimmskii/luaj) scripts. Runs on Java 8 and later.
+Classes for Lua scripts running on [LuaJ](https://github.com/dimmskii/luaj).
 
-## Usage
+Lua doesn't come with classes, and every project ends up building its own out of tables and metatables.
+This library gives your scripts one small, consistent way to do it: you describe a class as a plain table,
+register it, and from then on you can make instances of it, extend it, call up into the class you extended,
+and keep changing it while your program runs. It's written in Java, sits next to LuaJ's own libraries, and
+works the same whether your scripts are interpreted or compiled to Java bytecode with LuaJC.
 
-Releases are built by [JitPack](https://jitpack.io/#dimmskii/luaj-classlib) from this repository's tags.
-LuaJ ([luaj-jitpack](https://github.com/dimmskii/luaj-jitpack)) comes with it.
+## Getting started
+
+Add the library to your project (it brings LuaJ with it), then load it into your globals the same way you'd
+load any of LuaJ's libraries:
+
+```java
+Globals globals = JsePlatform.standardGlobals();
+globals.load(new ClassLib());   // org.luaj.vm2.lib.ClassLib
+```
+
+That gives every script a few new globals: `class` (with `class.register` and `class.get`), `new`, `super`,
+`isclass` and `isobj`. The sections below walk through what they're for, one idea at a time.
+
+### 1. Registering classes
+
+A class starts out as an ordinary Lua table. It needs a name, under `__classname`, and whatever methods and
+fields you want it to have. Handing it to `class.register` turns it into a class:
+
+```lua
+local Animal = class.register({
+    __classname = "animal",
+    speak = function(self) return "..." end,
+})
+```
+
+`class.register` gives you back a new table, the class itself. The table you passed in is only read, never
+kept, so you can put it together in whichever way reads best. Building it up as a local first works well
+for longer classes:
+
+```lua
+local Cat = { __classname = "cat" }
+
+function Cat:speak()
+    return "Meow"
+end
+
+Cat = class.register(Cat)
+```
+
+If you're used to Garry's Mod style entity files, where a file fills in a global table that something else
+then registers, that works too. The global is just the table, and you can clear it once you're done:
+
+```lua
+ENT = {}
+require("entities.lamp")          -- the file sets ENT.__classname, ENT.switch, ...
+local Lamp = class.register(ENT)
+ENT = nil
+```
+
+Or give each class its own file that returns the registered class, and load it with `require` like any
+other module:
+
+```lua
+-- weapon/gun.lua
+return class.register({
+    __classname = "weapon.gun",
+    fire = function(self) return "bang" end,
+})
+```
+
+```lua
+local Gun = require("weapon.gun")
+```
+
+Once a class is registered you can also find it again by name, from anywhere: `class.get("weapon.gun")`.
+
+### 2. Making instances
+
+`new` makes an instance of a class. Anything you pass after the class goes to its constructor (see
+[Constructors](#vi-constructors)). You can name the class instead of passing it, or ask the class itself:
+
+```lua
+local a = new(Animal)
+local b = new("animal")           -- the class registered under that name
+local c = Animal.__new()          -- note the dot, not a colon
+print(a:speak())                  -- ...
+```
+
+An instance is a table of its own. Whatever you set on it belongs to that instance; methods and the class's
+fields are looked up on the class. `isclass` and `isobj` tell you what you're holding, and are happy to be
+asked about any value:
+
+```lua
+a.nickname = "Rex"
+print(isobj(a), isclass(Animal), isobj(Animal), isclass(42))   -- true true false false
+```
+
+### 3. Names and namespaces
+
+Class names are case-sensitive (`"Dog"` and `"dog"` would be two different classes), and dots split a name
+into parts, the way a package path does: `"game.weapon.pistol"`. The last part is the class's short name,
+which the library works out for you. It's there to use however you like, as a display name for example:
+
+```lua
+local Pistol = class.register({ __classname = "game.weapon.pistol" })
+print(Pistol.__classname, Pistol.__shortname)    -- game.weapon.pistol   pistol
+```
+
+Because names are paths, you can make them line up with where things really live. Name each class after its
+module path (so `game.weapon.pistol` lives in `game/weapon/pistol.lua`), and if you like, hang the classes
+off the global namespace under the same path:
+
+```lua
+local function expose(cls)
+    local at = _G
+    for part in cls.__classname:gmatch("([^.]+)%.") do   -- every part but the last
+        at[part] = at[part] or {}
+        at = at[part]
+    end
+    at[cls.__shortname] = cls
+end
+
+expose(Pistol)
+local p = new(game.weapon.pistol)
+```
+
+### 4. Inheritance
+
+A class can extend another one by naming it in `__basename`. The base has to be registered first, which
+`require` takes care of naturally if each class file requires its base at the top:
+
+```lua
+local Dog = class.register({
+    __classname = "dog",
+    __basename = "animal",
+    fetch = function(self) return "fetched!" end,
+})
+
+local d = new(Dog)
+print(d:speak(), d:fetch())       -- ...   fetched!
+```
+
+The subclass gets everything its base has, and anything it defines itself takes the place of the base's
+version. There's no need for one common ancestor: any class can stand on its own, and you can have as many
+separate hierarchies as you want. The only rules are that a class can't end up inheriting itself, and that
+its base must already be registered (so it can't happen by accident).
+
+### 5. Base calls (super)
+
+Inside a method, `super` reaches the version of a method in the class you extended. Call it with a dot and
+pass `self` along:
+
+```lua
+local Puppy = class.register({
+    __classname = "puppy",
+    __basename = "dog",
+    speak = function(self)
+        return "Yip! (a puppy, but also " .. super.speak(self) .. ")"
+    end,
+})
+```
+
+`super` always goes up from the class that *wrote* the method, not from the instance's class. That's what
+lets every class in a long chain call up safely: each call goes exactly one level up, and classes that don't
+have their own version are simply skipped. It works the same in interpreted and LuaJC-compiled scripts,
+through coroutines that yield halfway through a method, and through errors.
+
+### 6. Constructors
+
+A class can have a constructor, `__constr`. It runs on every new instance and receives whatever was passed
+to `new` after the class:
+
+```lua
+local Gun = class.register({
+    __classname = "weapon.gun",
+    __constr = function(self, ammo)
+        self.ammo = ammo or 0
+    end,
+})
+
+local Rifle = class.register({
+    __classname = "weapon.rifle",
+    __basename = "weapon.gun",
+    __constr = function(self, ammo, scope)
+        super.__constr(self, ammo)
+        self.scope = scope
+    end,
+})
+
+local r = new(Rifle, 30, "4x")    -- r.ammo == 30, r.scope == "4x"
+```
+
+Constructors are inherited like any other method, so a class without its own simply uses its base's. A class
+with no constructor anywhere above it still has one that quietly does nothing, which means `super.__constr`
+is always safe to call. Remember to declare `self` as the first parameter: inside a table like this, there's
+no colon syntax to add it for you. Usage of constructors is completely optional.
+
+### 7. Mutability
+
+Classes aren't frozen once they're registered. You can add, replace or remove methods at any time, and the
+change reaches every subclass that doesn't have its own version:
+
+```lua
+Animal.sleep = function(self) return "zzz" end
+print(new(Puppy):sleep())         -- zzz: Dog and Puppy picked it up
+
+Dog.speak = function(self) return "Woof" end
+print(new(Puppy):speak())         -- Yip! (a puppy, but also Woof)
+
+Dog.speak = nil                   -- Dog gives up its own version again...
+print(new(Puppy):speak())         -- ...and Puppy's super call reaches Animal's: Yip! (a puppy, but also ...)
+```
+
+Methods you add later work with `super` just like the ones the class was registered with, so a class in the
+middle of a chain can start overriding something and slot straight into the chain of supercalls.
+
+This does make writing to a class table a little more expensive than writing to a plain table: each change is
+carried down to the subclasses that inherit it. Reading a method, calling it and making instances cost the
+same as before, so the trade-off is worth it in practice, but it's better to set up classes up front than to
+rewrite their methods in a hot loop.
+
+The fields the library keeps for you (`__classname`, `__shortname`, `__basename`, `__class`, `__base` and
+`__new`) are read-only: setting one raises an error.
+
+### 8. When something goes wrong
+
+Mistakes are reported as ordinary Lua errors that say what's wrong, so you can catch them with `pcall` like
+any other:
+
+```lua
+print(pcall(class.register, { __classname = "animal" }))
+-- false   class 'animal' is already registered
+
+print(pcall(class.register, { __classname = "cat.", __basename = "animal" }))
+-- false   class __classname 'cat.' must not end with '.'
+
+print(pcall(new, "unicorn"))
+-- false   bad argument #1 (no class registered as 'unicorn')
+```
+
+### Trying it yourself
+
+The repository has a walkthrough script that shows all of this working, with its classes split into files
+the way you'd do it in a real project. With JDK 17 or later:
+
+```sh
+./gradlew runLua --args="scripts/demo.lua"
+```
+
+## Installing
+
+Builds come from [JitPack](https://jitpack.io/#dimmskii/luaj-classlib), straight from this repository. There
+are no release tags yet, so use `main-SNAPSHOT` (the latest commit on `main`) until there are; after that,
+use a tag such as `0.1.0` instead. The library runs on Java 8 and later, and brings LuaJ
+([luaj-jitpack](https://github.com/dimmskii/luaj-jitpack)) with it.
 
 Gradle (Kotlin DSL):
 
@@ -16,7 +263,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.dimmskii:luaj-classlib:0.1.0")
+    implementation("com.github.dimmskii:luaj-classlib:main-SNAPSHOT")
 }
 ```
 
@@ -33,32 +280,14 @@ Maven:
 <dependency>
     <groupId>com.github.dimmskii</groupId>
     <artifactId>luaj-classlib</artifactId>
-    <version>0.1.0</version>
+    <version>main-SNAPSHOT</version>
 </dependency>
 ```
 
-Load the library into a script's globals, like LuaJ's own:
+## Reference: intended behaviour
 
-```java
-Globals globals = JsePlatform.standardGlobals();
-globals.load(new ClassLib());   // org.luaj.vm2.lib.ClassLib: the globals class, new and super
-```
-
-Then, in Lua:
-
-```lua
-local Animal = class.register({ __classname = "animal",
-    speak = function(self) return "..." end })
-
-local Dog = class.register({ __classname = "dog", __basename = "animal",
-    speak = function(self) return "Woof, not " .. super.speak(self) end })
-
-print(new(Dog):speak())   -- Woof, not ...
-```
-
-## Intended behaviour
-
-What the library is meant to do. Where it doesn't yet, [TODO.md](TODO.md) lists it.
+The same ground as [Getting started](#getting-started), stated precisely. Where the library doesn't do
+what's written here yet, [TODO.md](TODO.md) lists it.
 
 **Installing.** `globals.load(new ClassLib())` sets the globals `class` (also `package.loaded.class`), `new`,
 `super`, `isclass` and `isobj`. `class` holds `class.register` and `class.get`.
@@ -158,8 +387,9 @@ loaded (without arguments, `scripts/main.lua`, a playground). `scripts/demo.lua`
 above, checking itself as it goes; its classes are files under `scripts/demo/`, loaded with `require`. The
 runner is `LuaJClassLibTest` in the test sources, so it isn't part of the jar.
 
-**Tests.** `ClassLibTest` covers the intended behaviour above; `SuperTest` runs `super` both interpreted and
-compiled with LuaJC (which the tests get BCEL for).
+**Tests.** `ClassLibTest` covers the intended behaviour above (registering, inheritance, mutability,
+instances, constructors); `SuperTest` runs `super` both interpreted and compiled with LuaJC (which the tests
+get BCEL for).
 
 ## Releasing
 
