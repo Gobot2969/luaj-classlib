@@ -177,6 +177,69 @@ class ClassLibTest extends ClassLibTestBase {
 	}
 
 	@Nested
+	class InstanceData {
+
+		private static final String CLASS = "local C = class.register({ __classname = 'c', kind = 'shared',"
+				+ " speak = function(self) return 'class' end }) local a, b = C(), C()";
+
+		@Test
+		void aFieldSetOnAnInstanceMasksTheClassesForThatInstanceOnly() {
+			Varargs v = run(CLASS + " a.kind = 'mine' return a.kind, rawget(a, 'kind'), b.kind, C.kind");
+			assertEquals("mine", v.arg(1).tojstring());
+			assertEquals("mine", v.arg(2).tojstring());
+			assertEquals("shared", v.arg(3).tojstring());
+			assertEquals("shared", v.arg(4).tojstring());
+		}
+
+		@Test
+		void settingItToNilShowsTheClassesAgain() {
+			Varargs v = run(CLASS + " a.kind = 'mine' a.kind = nil return a.kind, rawget(a, 'kind')");
+			assertEquals("shared", v.arg(1).tojstring());
+			assertTrue(v.arg(2).isnil());
+		}
+
+		@Test
+		void aMaskedMemberKeepsTheInstancesValueWhenTheClassChanges() {
+			Varargs v = run(CLASS + " a.kind = 'mine' C.kind = 'changed' return a.kind, b.kind");
+			assertEquals("mine", v.arg(1).tojstring());
+			assertEquals("changed", v.arg(2).tojstring());
+		}
+
+		@Test
+		void systemFieldsCantBeSetOnAnInstance() {
+			for (String field : new String[] { "__classname", "__shortname", "__basename", "__class", "__base" }) {
+				String expected = "instance of 'c" + field + "': " + field + " can't be set";
+				run("i" + field + " = class.register('c" + field + "')()");
+				assertTrue(error("i" + field + "." + field + " = 'x'").contains(expected), field);
+				assertTrue(error("rawset(i" + field + ", '" + field + "', 'x')").contains(expected), field);
+				assertTrue(error("i" + field + "." + field + " = nil").contains(expected), field);
+			}
+		}
+
+		@Test
+		void aConstructorCantSetOneEither() {
+			assertTrue(error("local D = class.register({ __classname = 'd', __ = function(self) self.__class = 1 end }) D()")
+					.contains("instance of 'd': __class can't be set"));
+		}
+
+		@Test
+		void otherDoubleUnderscoreKeysAreOrdinaryOnAnInstance() {
+			Varargs v = run(CLASS + " a.__ = 'x' a.__tostring = 'y' return a.__, a.__tostring, isobj(C()), tostring(a):sub(1, 5)");
+			assertEquals("x", v.arg(1).tojstring());
+			assertEquals("y", v.arg(2).tojstring());
+			assertTrue(v.arg(3).toboolean());          // the class's constructor still makes instances
+			assertEquals("table", v.arg(4).tojstring());  // metamethods come from the class, not the instance
+		}
+
+		@Test
+		void aMethodCanBeOverriddenOnOneInstance() {
+			Varargs v = run(CLASS + " a.speak = function(self) return 'own' end return a:speak(), b:speak()");
+			assertEquals("own", v.arg(1).tojstring());
+			assertEquals("class", v.arg(2).tojstring());
+		}
+	}
+
+	@Nested
 	class Mutability {
 
 		/** a <- b <- c <- d; only a defines f. */

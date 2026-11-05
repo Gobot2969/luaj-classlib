@@ -127,4 +127,15 @@ class SuperTest extends ClassLibTestBase {
 		assertEquals("b>a", eval("local A = class.register('a') function A:hi() return 'a' end"
 				+ " local B = class.register('b', A) function B:hi() return 'b>' .. super.hi(self) end return B():hi()").tojstring());
 	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void aMethodKeptBeforeOverridingItOnAnInstanceStillCallsSuper(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("own>B>A talks: own>B>A", eval("local A = class.register('a') function A:speak() return 'A' end"
+				+ " local B = class.register('b', A) function B:speak() return 'B>' .. super.speak(self) end"
+				+ " function B:talk() return 'talks: ' .. self:speak() end"
+				+ " local ent = B() ent.old_speak = ent.speak ent.speak = function(self) return 'own>' .. self:old_speak() end"
+				+ " return ent:speak() .. ' ' .. ent:talk()").tojstring());
+	}
 }
