@@ -77,7 +77,7 @@ Once a class is registered you can also find it again by name, from anywhere: `c
 ### 2. Making instances
 
 `new` makes an instance of a class. Anything you pass after the class goes to its constructor (see
-[Constructors](#vi-constructors)). You can name the class instead of passing it, or ask the class itself:
+[Constructors](#6-constructors)). You can name the class instead of passing it, or ask the class itself:
 
 ```lua
 local a = new(Animal)
