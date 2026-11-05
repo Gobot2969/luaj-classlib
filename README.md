@@ -84,10 +84,13 @@ have no base (nil), and there can be any number of root classes. The only rules:
 Both hold by construction: a base is named by `__basename` and must already be registered, and a class only
 exists once its own `class.register` returns, so no chain can come back to it.
 
-**Inheritance.** Registering gives the class a copy of its base's fields and methods, then its own: its
-own replace the base's of the same name. The copy is taken when the class is registered: methods added to
-a base afterwards don't reach classes already registered on it. Register bases first, and define a class's
-methods before registering it.
+**Inheritance.** A class holds its own members (its table's) and copies of its base's other members; its own
+replace the base's of the same name. Classes stay mutable after registering, and the copies stay up to date:
+setting a member on a class (`B.f = function(self) ... end`, or `rawset`) makes it the class's own, and it
+reaches every subclass that doesn't define that member itself; setting it to nil gives it up, so the class
+(and those subclasses) inherit the base's again. A class registered later copies its base's members as they
+are then. Functions set on a class become its methods, so `super` works in them too. Reads are copies, as
+fast as plain table reads; a write costs one update per subclass it reaches.
 
 **Instances.** `new(Class, ...)` (or `new("name", ...)`, the class registered by that name, or
 `Class.__new(...)`) makes an instance: a table of its own, whose metatable is its class (with `__index` the
@@ -113,7 +116,7 @@ every class has a `__constr`, and a constructor can always call `super.__constr`
 the class's constructor plus the supercalls constructors make: classes without one of their own add nothing.
 
 **System fields.** Every class has these, and its instances see them through the class. The library keeps
-them; scripts read them and don't set them.
+them; scripts read them, and setting one on a class raises an error.
 
 | Field | Is |
 |---|---|
@@ -130,12 +133,12 @@ classes that don't implement the method are skipped. Call it with a dot and pass
 `super.speak(self, ...)`. It works for interpreted functions and ones compiled with LuaJC, through tail
 calls, errors and coroutines (a method can yield in the middle). It's only valid while a method runs: used
 outside one (including from a callback called after its method returned), or in a class with no base, it
-raises a Lua error. The methods are the functions the table held when it was registered.
+raises a Lua error. The methods are the functions a class was registered with or that were set on it since.
 
 **Errors.** Misuse (a missing, non-string or invalid `__classname`, a `__constr` that isn't a function, a
-`__basename` that isn't a string or isn't registered, a second argument to `class.register`, `new` on
-something that isn't a class or a registered name, a name registered twice) raises a Lua error naming the
-problem.
+`__basename` that isn't a string or isn't registered, a second argument to `class.register`, setting a system
+field, `new` on something that isn't a class or a registered name, a name registered twice) raises a Lua error
+naming the problem.
 
 ## Building
 

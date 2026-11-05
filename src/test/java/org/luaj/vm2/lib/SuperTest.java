@@ -61,4 +61,52 @@ class SuperTest extends ClassLibTestBase {
 		assertTrue(error("class.register({ __classname = 'r', f = function(self) return super.f(self) end }) return new('r'):f()")
 				.contains("super: class 'r' has no base class"));
 	}
+
+	/** a <- b <- c; a and c define f, c's calls super; b defines nothing at first. */
+	private static final String GAP = "class.register({ __classname = 'a', f = function(self) return 'A' end })"
+			+ " local B = class.register({ __classname = 'b', __basename = 'a' })"
+			+ " local C = class.register({ __classname = 'c', __basename = 'b', f = function(self) return 'C>' .. super.f(self) end })";
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void aMethodAddedToAMiddleClassLaterEntersTheChain(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("C>A C>B>A", eval(GAP + " local before = new(C):f()"
+				+ " B.f = function(self) return 'B>' .. super.f(self) end"
+				+ " return before .. ' ' .. new(C):f()").tojstring());
+	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void anOverrideRemovedFromAMiddleClassLeavesTheChain(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("C>B>A C>A", eval(GAP + " B.f = function(self) return 'B>' .. super.f(self) end"
+				+ " local before = new(C):f() B.f = nil return before .. ' ' .. new(C):f()").tojstring());
+	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void aChangedBaseMethodIsWhatSuperCalls(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("C>A2", eval(GAP + " class.get('a').f = function(self) return 'A2' end return new(C):f()").tojstring());
+	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void aMethodAddedAfterRegisteringCanUseSuper(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("B>A", eval(GAP + " function B:g() return 'B>' .. super.f(self) end return new(C):g()").tojstring());
+	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void aConstructorAddedToAMiddleClassEntersTheChain(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("a>b>c", eval("local log = {}"
+				+ " class.register({ __classname = 'a', __constr = function(self) log[#log + 1] = 'a' end })"
+				+ " local B = class.register({ __classname = 'b', __basename = 'a' })"
+				+ " class.register({ __classname = 'c', __basename = 'b', __constr = function(self) super.__constr(self) log[#log + 1] = 'c' end })"
+				+ " B.__constr = function(self) super.__constr(self) log[#log + 1] = 'b' end"
+				+ " new('c') return table.concat(log, '>')").tojstring());
+	}
 }

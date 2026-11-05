@@ -111,11 +111,11 @@ class ClassLibTest extends ClassLibTestBase {
 		}
 
 		@Test
-		void takesTheCopyWhenTheClassRegisters() {
+		void keepsSubclassesUpToDateWithTheirBase() {
 			LuaValue later = eval("local A = class.register({ __classname = 'a' })"
 					+ " local B = class.register({ __classname = 'b', __basename = 'a' })"
-					+ " A.later = function() end return B.later");
-			assertTrue(later.isnil());
+					+ " A.later = function() return 'later' end return B.later()");
+			assertEquals("later", later.tojstring());
 		}
 
 		@Test
@@ -125,6 +125,81 @@ class ClassLibTest extends ClassLibTestBase {
 			assertTrue(v.arg(1).isnil());
 			assertTrue(v.arg(2).isnil());
 			assertTrue(v.arg(3).toboolean());
+		}
+	}
+
+	@Nested
+	class Mutability {
+
+		/** a <- b <- c <- d; only a defines f. */
+		private static final String CHAIN = "local A = class.register({ __classname = 'a', f = function() return 'A' end })"
+				+ " local B = class.register({ __classname = 'b', __basename = 'a' })"
+				+ " local C = class.register({ __classname = 'c', __basename = 'b' })"
+				+ " local D = class.register({ __classname = 'd', __basename = 'c' })";
+
+		@Test
+		void aChangeReachesEverySubclassThatDoesntDefineTheMember() {
+			Varargs v = run(CHAIN + " C.f = function() return 'C' end A.f = function() return 'A2' end"
+					+ " return B.f(), C.f(), D.f(), new(D).f()");
+			assertEquals("A2", v.arg(1).tojstring());
+			assertEquals("C", v.arg(2).tojstring());   // defines f itself: the base's change doesn't reach it
+			assertEquals("C", v.arg(3).tojstring());   // inherits C's
+			assertEquals("C", v.arg(4).tojstring());
+		}
+
+		@Test
+		void removingAnOverrideInheritsTheBasesAgain() {
+			Varargs v = run(CHAIN + " C.f = function() return 'C' end local before = D.f() C.f = nil"
+					+ " return before, C.f(), D.f()");
+			assertEquals("C", v.arg(1).tojstring());
+			assertEquals("A", v.arg(2).tojstring());
+			assertEquals("A", v.arg(3).tojstring());
+		}
+
+		@Test
+		void removingFromTheBaseRemovesItWhereItWasInherited() {
+			Varargs v = run(CHAIN + " C.f = function() return 'C' end A.f = nil return B.f, C.f(), D.f()");
+			assertTrue(v.arg(1).isnil());
+			assertEquals("C", v.arg(2).tojstring());
+			assertEquals("C", v.arg(3).tojstring());
+		}
+
+		@Test
+		void aClassRegisteredLaterTakesTheCurrentMembers() {
+			LuaValue f = eval(CHAIN + " B.f = function() return 'B' end"
+					+ " local E = class.register({ __classname = 'e', __basename = 'd' }) return E.f()");
+			assertEquals("B", f.tojstring());
+		}
+
+		@Test
+		void constructorsFollowLikeMethods() {
+			Varargs v = run("local A = class.register({ __classname = 'a' })"
+					+ " local B = class.register({ __classname = 'b', __basename = 'a' })"
+					+ " A.__constr = function(self) self.made = 'A' end local first = new(B).made"
+					+ " A.__constr = nil return first, new(B).made, type(B.__constr)");
+			assertEquals("A", v.arg(1).tojstring());
+			assertTrue(v.arg(2).isnil());
+			assertEquals("function", v.arg(3).tojstring());   // back to its own default
+		}
+
+		@Test
+		void rawsetIsAChangeToo() {
+			assertEquals("raw", eval(CHAIN + " rawset(A, 'f', function() return 'raw' end) return D.f()").tojstring());
+		}
+
+		@Test
+		void systemFieldsCantBeSet() {
+			for (String field : new String[] { "__classname", "__shortname", "__basename", "__class", "__base", "__new" }) {
+				assertTrue(error("local C = class.register({ __classname = 'c" + field + "' }) C." + field + " = 1")
+						.contains(field + " can't be set"), field);
+			}
+		}
+
+		@Test
+		void instancesAreUnaffected() {
+			Varargs v = run(CHAIN + " local d = new(D) d.f = function() return 'own' end return d.f(), D.f()");
+			assertEquals("own", v.arg(1).tojstring());
+			assertEquals("A", v.arg(2).tojstring());
 		}
 	}
 
@@ -215,6 +290,7 @@ class ClassLibTest extends ClassLibTestBase {
 		@Test
 		void mustBeFunctions() {
 			assertTrue(error("class.register({ __classname = 'c', __constr = 5 })").contains("__constr must be a function, got number"));
+			assertTrue(eval("return class.get('c')").isnil());
 		}
 
 		@Test

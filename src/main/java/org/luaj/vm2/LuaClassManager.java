@@ -1,7 +1,10 @@
 package org.luaj.vm2;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -33,6 +36,15 @@ public class LuaClassManager {
 	public static final String CONSTRUCTOR_KEY = "__constr";
 	/** {@code Class.__new(...)}: a new instance of the class, its constructor given the arguments (as {@code new(Class, ...)}). */
 	public static final String NEW_FUNC_KEY = "__new";
+
+	/** Keys the library keeps on every class: set at registration only (a later write is an error), never inherited. */
+	private static final Set<LuaValue> SYSTEM_KEYS = new HashSet<LuaValue>(Arrays.asList(new LuaValue[] {
+			LuaValue.valueOf(CLASSNAME_KEY), LuaValue.valueOf(CLASSNAME_SHORT_KEY), LuaValue.valueOf(CLASSNAME_BASE_KEY),
+			LuaValue.valueOf(CLASSTABLE_KEY), LuaValue.valueOf(CLASSTABLE_BASE_KEY), LuaValue.valueOf(NEW_FUNC_KEY) }));
+	/** {@code __index}: each class's own (itself), never inherited. */
+	private static final LuaValue INDEX_KEY = LuaValue.INDEX;
+	/** {@link #CONSTRUCTOR_KEY} as a Lua string. */
+	private static final LuaValue CONSTRUCTOR = LuaValue.valueOf(CONSTRUCTOR_KEY);
 
 	/**
 	 * A map of all loaded class tables: {@code <String className, ClassLuaTable classTable>}, by exact name
@@ -94,8 +106,9 @@ public class LuaClassManager {
 	 * Its base is the class its {@link #CLASSNAME_BASE_KEY} string names, which must be registered already; without
 	 * one, the class has no base.
 	 * <p>
-	 * The new class gets a copy of its base's fields and methods, then {@code table}'s: its functions become this
-	 * class's methods ({@link ClassMethod}). {@code table} itself is only read.
+	 * The new class holds {@code table}'s members as its own (its functions become this class's methods,
+	 * {@link ClassMethod}) and copies of its base's other members ({@link #updateInheritance}); later writes to it keep
+	 * that up to date down its subclasses ({@link #setMember}). {@code table} itself is only read.
 	 *
 	 * @param table the class's name, base name and members
 	 * @return the new class table
@@ -131,40 +144,116 @@ public class LuaClassManager {
 			baseClassTable = named;
 		}
 
-		ClassLuaTable classTable = createClassTable(className, baseClassTable);
-		classes.put(className, classTable); // Save class table to classman
-
-		// A constructor must be a function
+		// A constructor must be a function (checked before anything is registered)
 		LuaValue constructor = table.rawget(CONSTRUCTOR_KEY);
 		if (!constructor.isnil() && !constructor.isfunction()) {
 			throw new LuaError("class '" + className + "': " + CONSTRUCTOR_KEY + " must be a function, got " + constructor.typename());
 		}
 
-		// Copy baseClassTable keys (its methods, constructor included), but __new: the class answers that itself
+		ClassLuaTable classTable = createClassTable(className, baseClassTable);
+		classes.put(className, classTable); // Save class table to classman
 		if (baseClassTable != null) {
-			for (LuaValue key : baseClassTable.keys()) {
-				if (key.isstring()) {
-					String k = key.tojstring();
-					if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
-					if (k.equals(NEW_FUNC_KEY)) continue;
-				}
-				classTable.rawset(key, baseClassTable.rawget(key));
-			}
+			baseClassTable.subclasses().add(classTable);
 		}
 
-		// Copy table keys; its functions become this class's methods (see ClassMethod: super), its constructor too
+		// The table's members are the class's own; its functions become this class's methods (see ClassMethod: super)
 		for (LuaValue key : table.keys()) {
-			if (key.isstring()) {
-				String k = key.tojstring();
-				if (k.equals(CLASSNAME_KEY) || k.equals(CLASSNAME_SHORT_KEY) || k.equals(CLASSNAME_BASE_KEY)) continue;
-				if (k.equals(NEW_FUNC_KEY)) continue; // the class answers it itself
-			}
-			classTable.rawset(key, ClassMethod.wrap(table.rawget(key), classTable));
+			if (SYSTEM_KEYS.contains(key) || INDEX_KEY.raweq(key)) continue; // the class answers these itself
+			classTable.ownKeys().add(key);
+			classTable.store(key, ClassMethod.wrap(table.rawget(key), classTable));
 		}
-		
-		classTable.set("__index", classTable); // Instances (whose metatable is this class) find its methods and fields through it
-	
+
+		updateInheritance(classTable);
+
+		classTable.store(INDEX_KEY, classTable); // Instances (whose metatable is this class) find its methods and fields through it
+		classTable.finishRegistering();
 		return classTable;
+	}
+
+	/**
+	 * Gives a class being registered what it inherits: every member of its base it doesn't define itself, one key at
+	 * a time ({@link #updateMethodInheritance}, {@link #updateConstructorInheritance}).
+	 *
+	 * @param classTable the class being registered
+	 */
+	private void updateInheritance(ClassLuaTable classTable) {
+		ClassLuaTable base = classTable.getBaseClassTable();
+		if (base == null) {
+			return;
+		}
+		for (LuaValue key : base.keys()) {
+			if (!inherited(key)) continue;
+			if (CONSTRUCTOR.raweq(key)) {
+				updateConstructorInheritance(classTable);
+			} else {
+				updateMethodInheritance(classTable, key);
+			}
+		}
+	}
+
+	/**
+	 * Brings one member up to date in a class and down its subclasses: a class that defines the key keeps its own
+	 * value, one that doesn't takes its base's (or nil), and so on through the subclasses that don't define it either.
+	 *
+	 * @param classTable the class where the member changed (or is inherited for the first time)
+	 * @param key        the member's key
+	 */
+	private void updateMethodInheritance(ClassLuaTable classTable, LuaValue key) {
+		if (!classTable.ownKeys().contains(key)) {
+			ClassLuaTable base = classTable.getBaseClassTable();
+			classTable.store(key, base == null ? LuaValue.NIL : base.stored(key));
+		}
+		for (ClassLuaTable subclass : classTable.subclasses()) {
+			if (!subclass.ownKeys().contains(key)) {
+				updateMethodInheritance(subclass, key);
+			}
+		}
+	}
+
+	/**
+	 * {@link #updateMethodInheritance} for {@link #CONSTRUCTOR_KEY}. A class that ends up with none answers its own
+	 * default ({@link ClassLuaTable#getConstructor}), which is never copied.
+	 *
+	 * @param classTable the class where the constructor changed (or is inherited for the first time)
+	 */
+	private void updateConstructorInheritance(ClassLuaTable classTable) {
+		updateMethodInheritance(classTable, CONSTRUCTOR);
+	}
+
+	/**
+	 * A write to a registered class ({@code C.f = ...}, {@code rawset}): the class defines that member from now on
+	 * (nil: no longer, so it inherits its base's again), a function becoming its method, and its subclasses that
+	 * don't define it follow. System fields can't be set; integer keys and {@code __index} are only stored.
+	 *
+	 * @param classTable the class written to
+	 * @param key        the key
+	 * @param value      the value, nil to remove the class's own
+	 * @throws LuaError if {@code key} is a system field
+	 */
+	void setMember(ClassLuaTable classTable, LuaValue key, LuaValue value) {
+		if (SYSTEM_KEYS.contains(key)) {
+			throw new LuaError("class '" + classTable.getClassName() + "': " + key.tojstring() + " can't be set");
+		}
+		if (key.isinttype() || INDEX_KEY.raweq(key)) {
+			classTable.store(key, value);
+			return;
+		}
+		if (value.isnil()) {
+			classTable.ownKeys().remove(key);
+		} else {
+			classTable.ownKeys().add(key);
+			classTable.store(key, ClassMethod.wrap(value, classTable));
+		}
+		if (CONSTRUCTOR.raweq(key)) {
+			updateConstructorInheritance(classTable);
+		} else {
+			updateMethodInheritance(classTable, key);
+		}
+	}
+
+	/** Whether a base's key is inherited: everything but the system fields and {@code __index}. */
+	private static boolean inherited(LuaValue key) {
+		return !SYSTEM_KEYS.contains(key) && !INDEX_KEY.raweq(key);
 	}
 
 	/**

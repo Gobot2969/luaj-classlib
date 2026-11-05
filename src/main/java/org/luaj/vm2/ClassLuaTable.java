@@ -1,5 +1,10 @@
 package org.luaj.vm2;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.luaj.vm2.lib.VarArgFunction;
 
 /**
@@ -34,6 +39,18 @@ public class ClassLuaTable extends LuaTable {
 	 * nothing. Read directly by {@link #getConstructor} and for {@code __constr}, so neither looks the table up.
 	 */
 	private LuaValue constructor = new DefaultConstructor();
+
+	/** The keys this class defines itself (its registered table's, and those set on it since); the rest it inherits. */
+	private final Set<LuaValue> ownKeys = new HashSet<LuaValue>();
+
+	/** The classes registered with this one as their base. */
+	private final List<ClassLuaTable> subclasses = new ArrayList<ClassLuaTable>();
+
+	/** While {@link LuaClassManager#registerClass} fills the class, writes only store. */
+	private boolean registering = true;
+
+	/** Set while the manager stores: the write is only stored ({@link #store}). */
+	private boolean storing;
 
 	/**
 	 * Creates an empty class; {@link LuaClassManager#registerClass} fills and registers it.
@@ -133,9 +150,9 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	/**
-	 * The constructor this class's instances run: its {@link LuaClassManager#CONSTRUCTOR_KEY}, its own or the one
-	 * copied from its base when it was registered, or else the class's own default, which does nothing (a field read:
-	 * no table lookup, none up the hierarchy).
+	 * The constructor this class's instances run: its {@link LuaClassManager#CONSTRUCTOR_KEY}, its own or the one it
+	 * inherits (kept up to date by the manager), or else the class's own default, which does nothing (a field read: no
+	 * table lookup, none up the hierarchy).
 	 *
 	 * @return the constructor, never nil
 	 */
@@ -144,16 +161,56 @@ public class ClassLuaTable extends LuaTable {
 	}
 
 	/**
-	 * Stores as any table does, and keeps {@link #getConstructor} in step with what's stored under
-	 * {@link LuaClassManager#CONSTRUCTOR_KEY}: a constructor set there is the class's, and nil gives it a new default
-	 * of its own. Every write of a string key ends here ({@code set}, {@code rawset}, Lua's and LuaJC's).
+	 * Every write of a non-integer key ends here ({@code set}, {@code rawset}, Lua's and LuaJC's). Once the class is
+	 * registered, a write is a change of the class's member, which the manager carries down its subclasses
+	 * ({@link LuaClassManager#setMember}). Otherwise (registering, or the manager storing) it stores as any table
+	 * does, and keeps {@link #getConstructor} in step with what's stored under {@link LuaClassManager#CONSTRUCTOR_KEY}:
+	 * a constructor set there is the class's, and nil gives it a new default of its own.
 	 */
 	@Override
 	public void hashset(LuaValue key, LuaValue value) {
+		if (!registering && !storing) {
+			classManager.setMember(this, key, value);
+			return;
+		}
 		super.hashset(key, value);
 		if (CONSTRUCTOR_KEY.raweq(key)) {
 			constructor = value.isnil() ? new DefaultConstructor() : value;
 		}
+	}
+
+	/**
+	 * Stores a value without handling it as a change of member ({@link #hashset}): what the manager uses to fill and
+	 * update the class.
+	 */
+	void store(LuaValue key, LuaValue value) {
+		boolean was = storing;
+		storing = true;
+		try {
+			rawset(key, value);
+		} finally {
+			storing = was;
+		}
+	}
+
+	/** What the table itself holds under a key: for the constructor, nil when the class only has its default. */
+	LuaValue stored(LuaValue key) {
+		return CONSTRUCTOR_KEY.raweq(key) ? super.hashget(key) : rawget(key);
+	}
+
+	/** Called by the manager when the class is registered: writes are member changes from now on. */
+	void finishRegistering() {
+		registering = false;
+	}
+
+	/** @return the keys this class defines itself */
+	Set<LuaValue> ownKeys() {
+		return ownKeys;
+	}
+
+	/** @return the classes registered with this one as their base */
+	List<ClassLuaTable> subclasses() {
+		return subclasses;
 	}
 
 	/** @return this class */
