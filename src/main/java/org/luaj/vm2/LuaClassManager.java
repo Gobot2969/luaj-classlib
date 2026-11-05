@@ -290,6 +290,18 @@ public class LuaClassManager {
 		}
 	}
 
+	/**
+	 * Whether a key is one of the system fields the library keeps ({@link #CLASSNAME_KEY}, {@link #CLASSNAME_SHORT_KEY},
+	 * {@link #CLASSNAME_BASE_KEY}, {@link #CLASSTABLE_KEY}, {@link #CLASSTABLE_BASE_KEY}): set on neither classes nor
+	 * instances.
+	 *
+	 * @param key a key
+	 * @return whether it's a system field
+	 */
+	public static boolean isSystemKey(LuaValue key) {
+		return SYSTEM_KEYS.contains(key);
+	}
+
 	/** Whether a base's key is inherited: everything but the system fields and {@code __index}. */
 	private static boolean inherited(LuaValue key) {
 		return !SYSTEM_KEYS.contains(key) && !INDEX_KEY.raweq(key);
