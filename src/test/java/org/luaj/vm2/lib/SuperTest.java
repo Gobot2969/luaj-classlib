@@ -103,10 +103,28 @@ class SuperTest extends ClassLibTestBase {
 	void aConstructorAddedToAMiddleClassEntersTheChain(boolean luajc) {
 		globals = globals(luajc);
 		assertEquals("a>b>c", eval("local log = {}"
-				+ " class.register({ __classname = 'a', __constr = function(self) log[#log + 1] = 'a' end })"
+				+ " class.register({ __classname = 'a', __ = function(self) log[#log + 1] = 'a' end })"
 				+ " local B = class.register({ __classname = 'b', __basename = 'a' })"
-				+ " class.register({ __classname = 'c', __basename = 'b', __constr = function(self) super.__constr(self) log[#log + 1] = 'c' end })"
-				+ " B.__constr = function(self) super.__constr(self) log[#log + 1] = 'b' end"
+				+ " class.register({ __classname = 'c', __basename = 'b', __ = function(self) super.__(self) log[#log + 1] = 'c' end })"
+				+ " B.__ = function(self) super.__(self) log[#log + 1] = 'b' end"
 				+ " new('c') return table.concat(log, '>')").tojstring());
+	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void constructorsChainWhenTheClassIsCalled(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("base>gun sidearm 12", eval("local Base = class.register('base') function Base:__(name) self.log = 'base' self.name = name end"
+				+ " local Gun = class.register('gun', Base) function Gun:__(name, ammo) super.__(self, name) self.log = self.log .. '>gun' self.ammo = ammo end"
+				+ " local Pistol = class.register('pistol', 'gun')"
+				+ " local p = Pistol('sidearm', 12) return p.log .. ' ' .. p.name .. ' ' .. p.ammo").tojstring());
+	}
+
+	@ParameterizedTest(name = "luajc={0}")
+	@ValueSource(booleans = { false, true })
+	void methodsAddedToAClassMadeByNameCanUseSuper(boolean luajc) {
+		globals = globals(luajc);
+		assertEquals("b>a", eval("local A = class.register('a') function A:hi() return 'a' end"
+				+ " local B = class.register('b', A) function B:hi() return 'b>' .. super.hi(self) end return B():hi()").tojstring());
 	}
 }
