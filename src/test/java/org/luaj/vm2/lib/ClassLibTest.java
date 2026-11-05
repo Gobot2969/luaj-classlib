@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.luaj.vm2.ClassLuaTable;
 import org.luaj.vm2.InstanceLuaTable;
 import org.luaj.vm2.LuaValue;
@@ -192,10 +194,58 @@ class ClassLibTest extends ClassLibTestBase {
 		}
 
 		@Test
-		void settingItToNilShowsTheClassesAgain() {
-			Varargs v = run(CLASS + " a.kind = 'mine' a.kind = nil return a.kind, rawget(a, 'kind')");
-			assertEquals("shared", v.arg(1).tojstring());
+		void settingItToNilMasksItWithNil() {
+			Varargs v = run(CLASS + " a.kind = 'mine' a.kind = nil b.kind = nil"
+					+ " return a.kind, rawget(a, 'kind'), b.kind, C.kind, C().kind");
+			assertTrue(v.arg(1).isnil());
 			assertTrue(v.arg(2).isnil());
+			assertTrue(v.arg(3).isnil());                   // never set before: nil masks it too
+			assertEquals("shared", v.arg(4).tojstring());
+			assertEquals("shared", v.arg(5).tojstring());
+		}
+
+		@Test
+		void aMethodMaskedWithNilIsGoneForThatInstance() {
+			Varargs v = run(CLASS + " a.speak = nil return a.speak, b:speak(), pcall(function() return a:speak() end)");
+			assertTrue(v.arg(1).isnil());
+			assertEquals("class", v.arg(2).tojstring());
+			assertFalse(v.arg(3).toboolean());
+		}
+
+		@Test
+		void assigningTheClassesValueTakesItAgainAsTheInstancesOwn() {
+			Varargs v = run(CLASS + " a.kind = nil a.kind = C.kind C.kind = 'changed' return a.kind, b.kind");
+			assertEquals("shared", v.arg(1).tojstring());    // a copy of the class's value at the time
+			assertEquals("changed", v.arg(2).tojstring());
+		}
+
+		@Test
+		void pairsAndNextSkipMaskedNils() {
+			LuaValue keys = eval(CLASS + " a.kind = nil a.own = 1 a.other = 2 local k = {}"
+					+ " for key, value in pairs(a) do k[#k + 1] = key .. '=' .. value end table.sort(k) return table.concat(k, ' ')");
+			assertEquals("other=2 own=1", keys.tojstring());
+		}
+
+		@Test
+		void nilForAKeyTheClassDoesntHaveRemovesIt() {
+			Varargs v = run(CLASS + " a.extra = 1 a.extra = nil local n = 0 for _ in pairs(a) do n = n + 1 end return a.extra, n");
+			assertTrue(v.arg(1).isnil());
+			assertEquals(0, v.arg(2).toint());
+		}
+
+		@ParameterizedTest(name = "luajc={0}")
+		@ValueSource(booleans = { false, true })
+		void maskingWorksTheSameCompiled(boolean luajc) {
+			globals = globals(luajc);
+			assertEquals("nil nil white mine white", eval(CLASS.replace("'shared'", "'white'")
+					+ " a.kind = nil local first = tostring(a.kind) .. ' ' .. tostring(rawget(a, 'kind'))"
+					+ " b.kind = 'mine' local second = b.kind a.kind = C.kind"
+					+ " return first .. ' ' .. C.kind .. ' ' .. second .. ' ' .. a.kind").tojstring());
+		}
+
+		@Test
+		void aMaskedNilCanBeOverwritten() {
+			assertEquals("green", eval(CLASS + " a.kind = nil a.kind = 'green' return a.kind").tojstring());
 		}
 
 		@Test
