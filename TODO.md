@@ -21,6 +21,6 @@ Not decided: behaviour that may need changing.
 
 ## Later
 
-- **Metamethods for instances**, starting with `__tostring` (`dog: 0x...` instead of `table: 0x...`;
-  LuaJ doesn't name tables by `__name` the way Lua 5.3+ does). Then whichever of `__eq`, `__lt`, `__le`,
-  `__concat`, the arithmetic ones and `__call` classes should get, and how a class declares them.
+- **A default `__tostring` for instances** (`dog: 0x...` instead of `table: 0x...`; LuaJ doesn't name
+  tables by `__name` the way Lua 5.3+ does). Classes can already give their instances any metamethod by
+  defining it (README, "Operators and other metamethods"); this is only about the default.

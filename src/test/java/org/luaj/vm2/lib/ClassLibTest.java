@@ -302,6 +302,19 @@ class ClassLibTest extends ClassLibTestBase {
 		}
 
 		@Test
+		void getTheMetamethodsTheirClassDefines() {
+			Varargs v = run("local V = class.register('vec') function V:__(x, y) self.x, self.y = x, y end"
+					+ " V.__tostring = function(s) return '(' .. s.x .. ', ' .. s.y .. ')' end"
+					+ " V.__add = function(a, b) return V(a.x + b.x, a.y + b.y) end"
+					+ " V.__eq = function(a, b) return a.x == b.x and a.y == b.y end"
+					+ " local V3 = class.register('vec3', V)"
+					+ " return tostring(V(1, 2) + V(3, 4)), V(1, 2) == V(1, 2), tostring(V3(5, 6))");
+			assertEquals("(4, 6)", v.arg(1).tojstring());
+			assertTrue(v.arg(2).toboolean());
+			assertEquals("(5, 6)", v.arg(3).tojstring());   // inherited
+		}
+
+		@Test
 		void haveTheirOwnFieldsAndFindTheClassesThroughIt() {
 			Varargs v = run("local C = class.register({ __classname = 'c', kind = 'shared', who = function(self) return self.name end })"
 					+ " local a, b = new(C), new(C) a.name = 'a' b.name = 'b'"

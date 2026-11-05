@@ -242,7 +242,26 @@ rewrite their methods in a hot loop.
 The fields the library keeps for you (`__classname`, `__shortname`, `__basename`, `__class` and `__base`)
 are read-only: setting one raises an error.
 
-### 8. Looking around
+### 8. Operators and other metamethods
+
+A class is its instances' metatable, so any metamethod you give a class works on its instances: printing them,
+adding them together, comparing them, calling them. Like other members, metamethods are inherited and can be
+changed later:
+
+```lua
+local Vec = class.register("vec")
+function Vec:__(x, y) self.x, self.y = x, y end
+Vec.__tostring = function(v) return "(" .. v.x .. ", " .. v.y .. ")" end
+Vec.__add = function(a, b) return Vec(a.x + b.x, a.y + b.y) end
+Vec.__eq = function(a, b) return a.x == b.x and a.y == b.y end
+
+print(Vec(1, 2) + Vec(3, 4))                   -- (4, 6)
+print(Vec(1, 2) == Vec(1, 2))                  -- true
+```
+
+(Calling the class itself always makes an instance; a `__call` you define makes the *instances* callable.)
+
+### 9. Looking around
 
 A few calls let you ask about the classes you have. `class.list` gives the names of the registered classes,
 sorted, and can stay inside one namespace; `class.subclasses` gives the classes that extend one (with `true`,
@@ -264,7 +283,7 @@ print(instanceof(p, Dog), instanceof(p, "animal"), instanceof(p, Dog, true))   -
 print(class.extends(Puppy, Animal), class.extends(Animal, Puppy))              -- true false
 ```
 
-### 9. When something goes wrong
+### 10. When something goes wrong
 
 Mistakes are reported as ordinary Lua errors that say what's wrong, so you can catch them with `pcall` like
 any other:
@@ -367,6 +386,9 @@ reaches every subclass that doesn't define that member itself; setting it to nil
 (and those subclasses) inherit the base's again. A class registered later copies its base's members as they
 are then. Functions set on a class become its methods, so `super` works in them too. Reads are copies, as
 fast as plain table reads; a write costs one update per subclass it reaches.
+
+**Metamethods.** A class is its instances' metatable, so the metamethods it defines (`__tostring`, `__add`,
+`__eq`, `__call`...) apply to its instances, and are inherited and changed like any other member.
 
 **Instances.** Calling a class, `Class(...)`, makes an instance, and so do `new(Class, ...)` and
 `new("name", ...)` (the class registered by that name): a table of its own, whose metatable is its class (with
