@@ -34,13 +34,11 @@ public class LuaClassManager {
 	 * from a class with a base.
 	 */
 	public static final String CONSTRUCTOR_KEY = "__constr";
-	/** {@code Class.__new(...)}: a new instance of the class, its constructor given the arguments (as {@code new(Class, ...)}). */
-	public static final String NEW_FUNC_KEY = "__new";
 
 	/** Keys the library keeps on every class: set at registration only (a later write is an error), never inherited. */
 	private static final Set<LuaValue> SYSTEM_KEYS = new HashSet<LuaValue>(Arrays.asList(new LuaValue[] {
 			LuaValue.valueOf(CLASSNAME_KEY), LuaValue.valueOf(CLASSNAME_SHORT_KEY), LuaValue.valueOf(CLASSNAME_BASE_KEY),
-			LuaValue.valueOf(CLASSTABLE_KEY), LuaValue.valueOf(CLASSTABLE_BASE_KEY), LuaValue.valueOf(NEW_FUNC_KEY) }));
+			LuaValue.valueOf(CLASSTABLE_KEY), LuaValue.valueOf(CLASSTABLE_BASE_KEY) }));
 	/** {@code __index}: each class's own (itself), never inherited. */
 	private static final LuaValue INDEX_KEY = LuaValue.INDEX;
 	/** {@link #CONSTRUCTOR_KEY} as a Lua string. */
