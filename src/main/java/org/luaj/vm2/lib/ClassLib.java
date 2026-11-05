@@ -62,14 +62,18 @@ public class ClassLib extends TwoArgFunction {
 		}
 	}
 
-	/** {@code class.register(table [, superclass])}: Lua's side of {@link LuaClassManager#registerClass(LuaTable, ClassLuaTable)}. */
-	final class RegisterFunction extends TwoArgFunction {
+	/**
+	 * {@code class.register(table)}: Lua's side of {@link LuaClassManager#registerClass(LuaTable)}. It takes the table
+	 * alone (the base is named in it, {@code __basename}): a second argument is an error, not silently ignored.
+	 */
+	final class RegisterFunction extends VarArgFunction {
 		@Override
-		public LuaValue call(LuaValue table, LuaValue baseClassTable) {
-			if (!baseClassTable.isnil() && !(baseClassTable instanceof ClassLuaTable)) {
-				return argerror(2, "class expected, got " + baseClassTable.typename());
+		public Varargs invoke(Varargs args) {
+			if (args.narg() > 1) {
+				return argerror(2, "class.register takes only the class table; name its base with "
+						+ LuaClassManager.CLASSNAME_BASE_KEY);
 			}
-			return classManager.registerClass(table.checktable(), baseClassTable.isnil() ? null : (ClassLuaTable) baseClassTable);
+			return classManager.registerClass(args.checktable(1));
 		}
 	}
 

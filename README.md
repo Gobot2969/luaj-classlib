@@ -50,8 +50,8 @@ Then, in Lua:
 local Animal = class.register({ __classname = "animal",
     speak = function(self) return "..." end })
 
-local Dog = class.register({ __classname = "dog",
-    speak = function(self) return "Woof, not " .. super.speak(self) end }, Animal)
+local Dog = class.register({ __classname = "dog", __basename = "animal",
+    speak = function(self) return "Woof, not " .. super.speak(self) end })
 
 print(new(Dog):speak())   -- Woof, not ...
 ```
@@ -64,11 +64,10 @@ What the library is meant to do. Where it doesn't yet, [TODO.md](TODO.md) lists 
 `super`, `isclass` and `isobj`. `class` holds `class.register` and `class.get`.
 
 **Defining a class.** A class is defined as a plain table: its `__classname` (a string), and its methods and
-fields. `class.register(table [, base])` makes it a class and returns the class table. That's a new table:
-the one passed in is only read, so a script can build it however it likes (a local, a global like `ENT`
-filled by another file) and drop it after. `base` is a class returned by `class.register` or `class.get`;
-or the table names its base with `__basename` (a registered class's name). When both are given they
-must be the same class.
+fields, and optionally its base, `__basename` (a registered class's name). `class.register(table)` makes it a
+class and returns the class table; it takes no other argument. That's a new table: the one passed in is
+only read, so a script can build it however it likes (a local, a global like `ENT` filled by another file)
+and drop it after.
 
 **Names.** A class's name is its `__classname`, exactly as written: names are case-sensitive (`"Dog"` and
 `"dog"` are two classes). `.` is a delimiter (`"weapon.pistol"`), so a name can't be empty, start or end
@@ -82,8 +81,8 @@ have no base (nil), and there can be any number of root classes. The only rules:
 1. A class may not inherit itself, directly or indirectly.
 2. When a class is registered, its base class (and so all of its ancestors) must already be registered.
 
-Both hold by construction: a base is a class that `class.register` returned before, and a class only exists
-once its own `class.register` returns, so no chain can come back to it.
+Both hold by construction: a base is named by `__basename` and must already be registered, and a class only
+exists once its own `class.register` returns, so no chain can come back to it.
 
 **Inheritance.** Registering gives the class a copy of its base's fields and methods, then its own: its
 own replace the base's of the same name. The copy is taken when the class is registered: methods added to
@@ -102,8 +101,8 @@ else).
 ```lua
 local Gun = class.register({ __classname = "weapon.gun",
     __constr = function(self, ammo) self.ammo = ammo end })
-local Pistol = class.register({ __classname = "weapon.pistol",
-    __constr = function(self, ammo, silenced) super.__constr(self, ammo) self.silenced = silenced end }, Gun)
+local Pistol = class.register({ __classname = "weapon.pistol", __basename = "weapon.gun",
+    __constr = function(self, ammo, silenced) super.__constr(self, ammo) self.silenced = silenced end })
 local p = new(Pistol, 12, true)   -- p.ammo == 12, p.silenced == true
 ```
 
@@ -134,21 +133,30 @@ outside one (including from a callback called after its method returned), or in 
 raises a Lua error. The methods are the functions the table held when it was registered.
 
 **Errors.** Misuse (a missing, non-string or invalid `__classname`, a `__constr` that isn't a function, a
-base that isn't a class, a
-`__basename` that isn't registered or isn't the base given, `new` on something that isn't a class or a
-registered name, a name registered twice) raises a Lua error naming the problem.
+`__basename` that isn't a string or isn't registered, a second argument to `class.register`, `new` on
+something that isn't a class or a registered name, a name registered twice) raises a Lua error naming the
+problem.
 
 ## Building
 
 Needs JDK 17 or later (to run Gradle); the jar targets Java 8.
 
 ```sh
-./gradlew build              # jar, sources and javadoc jars in build/libs
+./gradlew build              # tests, then jar, sources and javadoc jars in build/libs
+./gradlew test               # the JUnit tests alone (src/test/java)
 ./gradlew publishToMavenLocal  # into ~/.m2 as io.github.dimmskii:luaj-classlib:<version>
 ```
 
 The version for local builds is in `gradle.properties`; dependency versions are in
 `gradle/libs.versions.toml`.
+
+**Trying it.** `./gradlew runLua --args="scripts/demo.lua"` runs a Lua file with LuaJ and the class library
+loaded (without arguments, `scripts/main.lua`, a playground). `scripts/demo.lua` walks through everything
+above, checking itself as it goes; its classes are files under `scripts/demo/`, loaded with `require`. The
+runner is `LuaJClassLibTest` in the test sources, so it isn't part of the jar.
+
+**Tests.** `ClassLibTest` covers the intended behaviour above; `SuperTest` runs `super` both interpreted and
+compiled with LuaJC (which the tests get BCEL for).
 
 ## Releasing
 

@@ -10,7 +10,7 @@ import org.luaj.vm2.lib.jse.JsePlatform;
 /**
  * Runs a Lua file with LuaJ's standard libraries and luaj-classlib's {@code class} library in its globals.
  * <p>
- * Usage: {@code Main [script.lua [args...]]}; without a script, {@code scripts/main.lua}. The script's arguments are
+ * Usage: {@code LuaJClassLibTest [script.lua [args...]]} (or {@code ./gradlew runLua --args="script.lua"}); without a script, {@code scripts/main.lua}. The script's arguments are
  * in {@code arg} and in {@code ...}, as with the {@code lua} command.
  */
 public final class LuaJClassLibTest {
