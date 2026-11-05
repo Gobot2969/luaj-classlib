@@ -116,8 +116,9 @@ print(isobj(a), isclass(Animal), isobj(Animal), isclass(42))   -- true true fals
 ### 3. Instance data and masking
 
 Each instance keeps its own data. Setting a field on an instance stores it on that instance only, and if the
-class has a member of the same name, the instance's value masks it, for that instance alone. Setting the
-field back to `nil` lets the class's value show through again:
+class has a member of the same name, the instance's value masks it, for that instance alone. That includes
+`nil`: an instance you set something to `nil` on reads `nil`, even if its class has a value there. To take
+the class's value again, assign it:
 
 ```lua
 local Lamp = class.register({ __classname = "lamp", color = "white" })
@@ -126,8 +127,13 @@ local a, b = Lamp(), Lamp()
 a.color = "red"
 print(a.color, b.color, Lamp.color)   -- red   white   white
 a.color = nil
-print(a.color)                        -- white: the class's again
+print(a.color)                        -- nil: still masked, now with nil
+a.color = Lamp.color
+print(a.color)                        -- white: a copy of the class's value, now a's own
 ```
+
+Since that last line copies the value, `a` keeps `"white"` even if `Lamp.color` changes later; instances
+that never set `color` follow the class.
 
 The fields the library keeps (`__classname`, `__shortname`, `__basename`, `__class` and `__base`) can't be
 masked: setting one on an instance raises an error, just like setting it on a class.
@@ -430,13 +436,13 @@ fast as plain table reads; a write costs one update per subclass it reaches.
 **Metamethods.** A class is its instances' metatable, so the metamethods it defines (`__tostring`, `__add`,
 `__eq`, `__call`...) apply to its instances, and are inherited and changed like any other member.
 
-**Instances.** Calling a class, `Class(...)`, makes an instance, and so do `new(Class, ...)` and
-`new("name", ...)` (the class registered by that name): a table of its own, whose metatable is its class (with
-`__index` the class). The arguments go to the constructor. Fields set on an instance are the instance's,
-and mask the class's member of that name for that instance only (nil unmasks it); methods and the class's
-fields are found on the class. The system fields can't be set on an instance. Metamethods always come from
-the class. `isclass(value)` and `isobj(value)` tell whether a value is a class or an instance (false for
-anything else).
+**Instances.** Calling a class, `Class(...)`, makes an instance, and so do `new(Class, ...)` and `new("name",
+...)` (the class registered by that name): a table of its own, whose metatable is its class (with `__index`
+the class). The arguments go to the constructor. Fields set on an instance are the instance's, and mask the
+class's member of that name for that instance only, nil included (it reads nil; assigning the class's value
+takes a copy of it). Setting nil for a key the class doesn't have removes it. Methods and the class's fields
+are found on the class. The system fields can't be set on an instance. Metamethods always come from the class.
+`isclass(value)` and `isobj(value)` tell whether a value is a class or an instance (false for anything else).
 
 **Constructors.** A class's `__` is its constructor: a method that runs on each new instance, given the
 arguments the instance was made with, before the instance is returned (what it returns is ignored).
