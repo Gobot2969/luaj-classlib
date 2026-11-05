@@ -142,12 +142,21 @@ problem.
 Needs JDK 17 or later (to run Gradle); the jar targets Java 8.
 
 ```sh
-./gradlew build              # jar, sources and javadoc jars in build/libs
+./gradlew build              # tests, then jar, sources and javadoc jars in build/libs
+./gradlew test               # the JUnit tests alone (src/test/java)
 ./gradlew publishToMavenLocal  # into ~/.m2 as io.github.dimmskii:luaj-classlib:<version>
 ```
 
 The version for local builds is in `gradle.properties`; dependency versions are in
 `gradle/libs.versions.toml`.
+
+**Trying it.** `./gradlew runLua --args="scripts/demo.lua"` runs a Lua file with LuaJ and the class library
+loaded (without arguments, `scripts/main.lua`, a playground). `scripts/demo.lua` walks through everything
+above, checking itself as it goes; its classes are files under `scripts/demo/`, loaded with `require`. The
+runner is `LuaJClassLibTest` in the test sources, so it isn't part of the jar.
+
+**Tests.** `ClassLibTest` covers the intended behaviour above; `SuperTest` runs `super` both interpreted and
+compiled with LuaJC (which the tests get BCEL for).
 
 ## Releasing
 

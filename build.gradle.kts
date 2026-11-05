@@ -8,6 +8,11 @@ description = "Java class libraries for LuaJ scripts"
 dependencies {
     // In the public API (libraries take and return LuaValue), so consumers get LuaJ too.
     api(libs.luaj)
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.bcel)
 }
 
 java {
@@ -21,6 +26,25 @@ tasks.compileJava {
     options.encoding = "UTF-8"
     // -Xlint:-options: newer JDKs call the Java 8 target obsolete
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-options"))
+}
+
+// The tests run on the build JDK (17 or later); only the library itself targets Java 8.
+tasks.compileTestJava {
+    options.encoding = "UTF-8"
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+// ./gradlew runLua --args="scripts/demo.lua": runs a Lua file with the class library (LuaJClassLibTest).
+tasks.register<JavaExec>("runLua") {
+    description = "Runs a Lua file with LuaJ and the class library (default: scripts/main.lua)."
+    group = "application"
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "LuaJClassLibTest"
+    workingDir = projectDir
+    standardInput = System.`in`
 }
 
 tasks.javadoc {
