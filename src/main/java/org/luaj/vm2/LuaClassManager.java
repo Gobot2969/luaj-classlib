@@ -27,13 +27,14 @@ public class LuaClassManager {
 	/** The base class table, nil for a class with no base. */
 	public static final String CLASSTABLE_BASE_KEY = "__base";
 	/**
-	 * The class's constructor: a method {@code new} calls on each new instance, with {@code new}'s other arguments
-	 * ({@code __constr = function(self, ...) end}). Copied into subclasses like any other method: a class without its
-	 * own has its nearest ancestor's. A class with none at all answers its own default, one that does nothing
-	 * ({@link ClassLuaTable#getConstructor}); so every class has one, and {@code super.__constr} can always be called
-	 * from a class with a base.
+	 * The class's constructor: a method run on each new instance, given the arguments it was made with
+	 * ({@code Class(...)}, {@code new(Class, ...)}). Defined as {@code __ = function(self, ...) end}, or
+	 * {@code function C:__(...) end}. Copied into subclasses like any other method: a class without its own has its
+	 * nearest ancestor's. A class with none at all answers its own default, one that does nothing
+	 * ({@link ClassLuaTable#getConstructor}); so every class has one, and {@code super.__} can always be called from
+	 * a class with a base.
 	 */
-	public static final String CONSTRUCTOR_KEY = "__constr";
+	public static final String CONSTRUCTOR_KEY = "__";
 
 	/** Keys the library keeps on every class: set at registration only (a later write is an error), never inherited. */
 	private static final Set<LuaValue> SYSTEM_KEYS = new HashSet<LuaValue>(Arrays.asList(new LuaValue[] {

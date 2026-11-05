@@ -33,7 +33,7 @@ public class ClassLuaTable extends LuaTable {
 	/**
 	 * The class's constructor: the {@link LuaClassManager#CONSTRUCTOR_KEY} stored in the table (its own, or copied from
 	 * its base), kept in step by {@link #hashset}; or, while the table holds none, the class's own default, which does
-	 * nothing. Read directly by {@link #getConstructor} and for {@code __constr}, so neither looks the table up.
+	 * nothing. Read directly by {@link #getConstructor} and for {@code __}, so neither looks the table up.
 	 */
 	private LuaValue constructor = new DefaultConstructor();
 
